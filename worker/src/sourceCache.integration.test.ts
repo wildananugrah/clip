@@ -178,6 +178,49 @@ maybe('a row whose file has vanished is dropped rather than handed out', async (
   expect(await rowFor(videoId)).toBeUndefined()
 }, 60_000)
 
+maybe('a quiet acquire never touches the job status, even when it downloads', async () => {
+  /**
+   * The regression. A re-cut, a backfill and a source build all run against a
+   * job that has already finished, and `quiet` is what keeps them from
+   * announcing 'downloading' and dragging it back out of a terminal state.
+   *
+   * An earlier cut of downloadAndClaim gated that setStatus on `jobId` alone.
+   * Running the worker for one minute was enough: the first backfill to drain
+   * flipped a cancelled job to 'downloading'.
+   *
+   * No cache row exists here, so this takes the download path -- which is the
+   * only path that ever called setStatus. It fails on a test:// URL, and that
+   * is fine: the assertion is about what did NOT happen on the way past.
+   */
+  const [user] = await db
+    .insert(schema.users)
+    .values({ googleSub: `test-quiet-${Date.now()}`, email: 'quiet@test.invalid' })
+    .returning()
+
+  const [job] = await db
+    .insert(schema.jobs)
+    .values({
+      userId: user!.id,
+      videoId,
+      status: 'completed',
+      clipCount: 1,
+      lengthPreset: 0,
+      formats: { '9:16': true },
+      burnSubtitles: false,
+    })
+    .returning()
+
+  const { acquireSource } = await import('./sourceCache.ts')
+  const video = (await db.select().from(schema.videos).where(eq(schema.videos.id, videoId)))[0]!
+
+  await acquireSource(job!.id, video, { quiet: true }).catch(() => {})
+
+  const [after] = await db.select().from(schema.jobs).where(eq(schema.jobs.id, job!.id))
+  expect(after!.status).toBe('completed')
+
+  await db.delete(schema.users).where(eq(schema.users.id, user!.id))
+}, 60_000)
+
 maybe('the sweep spares a held source and takes an idle expired one', async () => {
   const longAgo = new Date(Date.now() - (env.SOURCE_TTL_MINUTES + 10) * 60_000)
   await seed(videoId, { refs: 1, usedAt: longAgo })
@@ -205,9 +248,11 @@ maybe('boot reclaims this host\'s leaked leases and leaves others alone', async 
   await seed(videoId, { refs: 3 })
   await seed(otherVideoId, { hostId: 'some-other-box', refs: 2 })
 
-  const result = await reclaimSourceLeases()
+  await reclaimSourceLeases()
 
-  expect(result.leases).toBe(1)
+  // Asserted per row, not as a global count: this runs against a shared dev
+  // database where a real worker may have left leases of its own, and a count
+  // over rows the test does not own is a flake waiting to happen.
   expect((await rowFor(videoId))!.refs).toBe(0)
   // Another machine's lease is live work, not debris.
   expect((await rowFor(otherVideoId, 'some-other-box'))!.refs).toBe(2)

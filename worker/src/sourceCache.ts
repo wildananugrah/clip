@@ -147,12 +147,13 @@ export async function acquireSource(
     console.warn(`[sources] ${claimed.path} is gone; re-downloading ${video.id}`)
   }
 
-  return downloadAndClaim(jobId, video, announce)
+  return downloadAndClaim(jobId, video, opts, announce)
 }
 
 async function downloadAndClaim(
   jobId: string | null,
   video: typeof videos.$inferSelect,
+  opts: { quiet?: boolean },
   announce: (stage: string, fraction: number) => Promise<void>,
 ): Promise<SourceLease> {
   /**
@@ -173,7 +174,19 @@ async function downloadAndClaim(
   const info = await probe(video.url).catch(() => null)
   await assertDiskSpace(env.WORK_DIR, info?.estimatedBytes ?? null, env.MIN_FREE_DISK_GB)
 
-  if (jobId) {
+  /**
+   * `quiet` GATES THIS, NOT JUST THE PROGRESS FRAMES.
+   *
+   * A re-cut, a backfill and a source build all run against a job that has
+   * already finished, and setting 'downloading' on one takes it back out of a
+   * terminal state -- the results screen reads jobStatus 'downloading' with
+   * jobDone false, and a later /redo 409s because it requires 'completed'.
+   *
+   * Learned the hard way: an earlier cut of this checked only `jobId`, and the
+   * first backfill to run flipped a cancelled job to 'downloading' inside a
+   * minute of the worker booting.
+   */
+  if (jobId && !opts.quiet) {
     await setStatus(jobId, { status: 'downloading', stage: 'Downloading source', progress: 0 })
   }
 
