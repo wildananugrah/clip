@@ -13,11 +13,26 @@
  * no longer be saved, edited or re-cut.
  */
 import { eq, notInArray } from 'drizzle-orm'
-import { db, jobs } from './db.ts'
+import { db, jobs, pool } from './db.ts'
 import { reconcileVerdict, ORPHANED_MESSAGE } from '../../shared/reconcile.ts'
+import { WORKER_APP_PREFIX, workerAppName } from '../../shared/queue.ts'
+import { env } from './env.ts'
 import type { JobStatus } from '../../shared/types.ts'
 
 const TERMINAL: JobStatus[] = ['completed', 'failed', 'cancelled']
+
+async function otherWorkersAlive(): Promise<boolean> {
+  const currentApp = workerAppName(env.WORKER_HOST_ID)
+  // Check if any other worker connection is alive in Postgres
+  const res = await pool.query<{ count: string }>(
+    `SELECT count(*) FROM pg_stat_activity 
+     WHERE datname = current_database() 
+       AND application_name LIKE $1 
+       AND application_name <> $2`,
+    [`${WORKER_APP_PREFIX}:%`, currentApp],
+  )
+  return parseInt(res.rows[0]?.count ?? '0', 10) > 0
+}
 
 export async function reconcileOnBoot(): Promise<{ completed: number; failed: number }> {
   const stuck = await db.select().from(jobs).where(notInArray(jobs.status, TERMINAL))
@@ -25,8 +40,12 @@ export async function reconcileOnBoot(): Promise<{ completed: number; failed: nu
   let completed = 0
   let failed = 0
 
+  const hasPeers = await otherWorkersAlive().catch(() => false)
+  // If other workers are running, jobs in flight belong to them; don't fail them!
+  const nothingIsRunning = !hasPeers
+
   for (const job of stuck) {
-    const verdict = reconcileVerdict(job, { nothingIsRunning: true })
+    const verdict = reconcileVerdict(job, { nothingIsRunning })
 
     if (verdict === 'completed') {
       // Finished, then polluted by a re-cut announcing its own download.

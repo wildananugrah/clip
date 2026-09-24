@@ -27,10 +27,12 @@
  *     That is what makes a wrong WORKER_HOST_ID cost a re-download rather than
  *     a render failing on a missing path.
  */
-import { mkdir, rename, rm, readdir, stat, access } from 'node:fs/promises'
+import { createWriteStream } from 'node:fs'
+import { pipeline } from 'node:stream/promises'
+import { mkdir, rename, rm, readdir, stat, access, readFile } from 'node:fs/promises'
 import { join, basename } from 'node:path'
 import { eq, and, sql } from 'drizzle-orm'
-import { db, videos, videoSourceCache } from './db.ts'
+import { db, videos, videoSourceCache, storage, keys } from './db.ts'
 import { env } from './env.ts'
 import { download, probe, assertDiskSpace, assertYtdlpFresh } from '../../shared/ytdlp.ts'
 import { report, setStatus } from './progress.ts'
@@ -147,6 +149,46 @@ export async function acquireSource(
     console.warn(`[sources] ${claimed.path} is gone; re-downloading ${video.id}`)
   }
 
+  // Check if source exists in S3 (e.g. downloaded by another worker)
+  try {
+    const store = await storage.active()
+    const s3Key = keys.sourceVideo(video.id)
+    if (await store.s3.exists(s3Key)) {
+      await announce('Fetching source from storage', 0.5)
+      const home = finalDir(video.id)
+      await mkdir(home, { recursive: true })
+      const localPath = join(home, 'source.mp4')
+      const stream = await store.s3.getStream(s3Key)
+      await pipeline(stream, createWriteStream(localPath))
+      const { size } = await stat(localPath)
+
+      await db
+        .insert(videoSourceCache)
+        .values({
+          videoId: video.id,
+          hostId: env.WORKER_HOST_ID,
+          path: localPath,
+          bytes: size,
+          usedAt: new Date(),
+          refs: 1,
+        })
+        .onConflictDoUpdate({
+          target: [videoSourceCache.videoId, videoSourceCache.hostId],
+          set: {
+            path: localPath,
+            bytes: size,
+            usedAt: new Date(),
+            refs: sql`${videoSourceCache.refs} + 1`,
+          },
+        })
+
+      await announce('Using cached source from storage', 1)
+      return lease(video.id, localPath)
+    }
+  } catch (e) {
+    console.warn(`[sources] check S3 source cache failed for ${video.id}:`, (e as Error).message)
+  }
+
   return downloadAndClaim(jobId, video, announce)
 }
 
@@ -214,6 +256,16 @@ async function downloadAndClaim(
   }
 
   const { size } = await stat(path)
+
+  // Upload to S3 so any other worker can reuse this source without re-downloading from YouTube
+  try {
+    const store = await storage.active()
+    const s3Key = keys.sourceVideo(video.id)
+    const fileBuf = await readFile(path)
+    await store.s3.upload(s3Key, fileBuf, 'video/mp4')
+  } catch (e) {
+    console.warn(`[sources] S3 upload failed for ${video.id}:`, (e as Error).message)
+  }
 
   await db
     .insert(videoSourceCache)
