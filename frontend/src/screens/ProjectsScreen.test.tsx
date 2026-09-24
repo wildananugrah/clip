@@ -78,4 +78,16 @@ describe('ProjectsScreen', () => {
     expect(markup).toContain('First')
     expect(markup).toContain('Open')
   })
+
+  test('shows Cancel button when project is running', () => {
+    const running = {
+      ...project('a', 'First'),
+      status: 'downloading' as const,
+      stage: 'Downloading source',
+      progress: 15,
+    }
+    const markup = html([running])
+    expect(markup).toContain('Cancel')
+    expect(markup).not.toContain('Open')
+  })
 })

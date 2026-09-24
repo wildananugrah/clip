@@ -104,7 +104,7 @@ function DeleteProject({ id, title }: { id: string; title: string }) {
 }
 
 export function ProjectsScreen() {
-  const { state, goNew, openProject } = useApp()
+  const { state, goNew, openProject, cancelJob } = useApp()
   const { projects } = state
   const totalClips = projects.reduce((n, p) => n + p.clipCount, 0)
 
@@ -171,20 +171,30 @@ export function ProjectsScreen() {
               */}
               {/*
                 A job still in flight has nothing to open -- its clips do not
-                exist yet -- so the button is disabled rather than opening an
-                empty results screen.
+                exist yet -- so show a Cancel button while running, or disabled Open if terminal.
               */}
-              <button
-                type="button"
-                onClick={() => openProject(project.id)}
-                disabled={
-                  state.pending === `openProject:${project.id}` || !isTerminal(project.status)
-                }
-                aria-busy={state.pending === `openProject:${project.id}` || undefined}
-                className="flex h-10 flex-none cursor-pointer items-center text-[12.5px] font-medium text-violet hover:text-violet-deep disabled:cursor-not-allowed disabled:text-black/35 md:h-auto"
-              >
-                {state.pending === `openProject:${project.id}` ? 'Opening…' : 'Open'}
-              </button>
+              {!isTerminal(project.status) ? (
+                <button
+                  type="button"
+                  onClick={() => cancelJob(project.id)}
+                  disabled={state.pending === `cancelJob:${project.id}` || state.pending === 'cancelJob'}
+                  className="flex h-10 flex-none cursor-pointer items-center text-[12.5px] font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:text-black/35 md:h-auto"
+                >
+                  {state.pending === `cancelJob:${project.id}` || (state.pending === 'cancelJob' && state.jobId === project.id)
+                    ? 'Cancelling…'
+                    : 'Cancel'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openProject(project.id)}
+                  disabled={state.pending === `openProject:${project.id}`}
+                  aria-busy={state.pending === `openProject:${project.id}` || undefined}
+                  className="flex h-10 flex-none cursor-pointer items-center text-[12.5px] font-medium text-violet hover:text-violet-deep disabled:cursor-not-allowed disabled:text-black/35 md:h-auto"
+                >
+                  {state.pending === `openProject:${project.id}` ? 'Opening…' : 'Open'}
+                </button>
+              )}
               <DeleteProject id={project.id} title={project.title} />
             </li>
           ))}

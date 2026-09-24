@@ -31,11 +31,13 @@ export function isYouTubeUrl(url: string): boolean {
 export async function tryFetchYouTubeSubtitles(
   videoUrl: string,
   workDir: string,
-  logPrefix = '[yt-subs]'
+  logPrefix = '[yt-subs]',
+  signal?: AbortSignal,
 ): Promise<TranscribeResult | null> {
   if (!isYouTubeUrl(videoUrl)) {
     return null
   }
+  if (signal?.aborted) throw new Error('Aborted')
 
   const subOutDir = join(workDir, `subs_${Date.now()}`)
   const outTemplate = join(subOutDir, 'sub.%(ext)s')
@@ -59,6 +61,11 @@ export async function tryFetchYouTubeSubtitles(
     ]
 
     const proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] })
+    const onAbort = signal ? () => proc.kill('SIGKILL') : undefined
+    if (signal) {
+      if (signal.aborted) proc.kill('SIGKILL')
+      else signal.addEventListener('abort', onAbort!, { once: true })
+    }
     
     let stderr = ''
     proc.stderr.on('data', (d) => {
@@ -68,7 +75,10 @@ export async function tryFetchYouTubeSubtitles(
     const exitCode = await new Promise<number>((resolve) => {
       proc.on('close', (code) => resolve(code ?? 1))
       proc.on('error', () => resolve(1))
+    }).finally(() => {
+      if (signal && onAbort) signal.removeEventListener('abort', onAbort)
     })
+    if (signal?.aborted) throw new Error('Aborted')
 
     // Read the subtitle files created in subOutDir
     const files = await readdir(subOutDir).catch(() => [] as string[])

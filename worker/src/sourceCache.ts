@@ -106,7 +106,7 @@ function lease(videoId: string, path: string): SourceLease {
 export async function acquireSource(
   jobId: string | null,
   video: typeof videos.$inferSelect,
-  opts: { quiet?: boolean } = {},
+  opts: { quiet?: boolean; signal?: AbortSignal } = {},
 ): Promise<SourceLease> {
   const announce = async (stage: string, fraction: number) => {
     if (opts.quiet || !jobId) return
@@ -155,12 +155,17 @@ export async function acquireSource(
     const s3Key = keys.sourceVideo(video.id)
     if (await store.s3.exists(s3Key)) {
       await announce('Fetching source from storage', 0.5)
+      const staging = partialDir(video.id)
       const home = finalDir(video.id)
-      await mkdir(home, { recursive: true })
-      const localPath = join(home, 'source.mp4')
+      await rm(staging, { recursive: true, force: true }).catch(() => {})
+      await mkdir(staging, { recursive: true })
+      const stagingPath = join(staging, 'source.mp4')
       const stream = await store.s3.getStream(s3Key)
-      await pipeline(stream, createWriteStream(localPath))
-      const { size } = await stat(localPath)
+      await pipeline(stream, createWriteStream(stagingPath), { signal: opts.signal })
+      const { size } = await stat(stagingPath)
+      await rm(home, { recursive: true, force: true }).catch(() => {})
+      await rename(staging, home)
+      const localPath = join(home, 'source.mp4')
 
       await db
         .insert(videoSourceCache)
@@ -186,16 +191,22 @@ export async function acquireSource(
       return lease(video.id, localPath)
     }
   } catch (e) {
+    const staging = partialDir(video.id)
+    await rm(staging, { recursive: true, force: true }).catch(() => {})
+    if (opts.signal?.aborted || (e as Error)?.name === 'AbortError') {
+      throw e
+    }
     console.warn(`[sources] check S3 source cache failed for ${video.id}:`, (e as Error).message)
   }
 
-  return downloadAndClaim(jobId, video, announce)
+  return downloadAndClaim(jobId, video, announce, opts.signal)
 }
 
 async function downloadAndClaim(
   jobId: string | null,
   video: typeof videos.$inferSelect,
   announce: (stage: string, fraction: number) => Promise<void>,
+  signal?: AbortSignal,
 ): Promise<SourceLease> {
   /**
    * Make room BEFORE asking whether there is room.
@@ -240,9 +251,14 @@ async function downloadAndClaim(
 
   let path: string
   try {
-    const downloaded = await download(video.url, staging, (f) => {
-      void announce('Downloading source', f)
-    })
+    const downloaded = await download(
+      video.url,
+      staging,
+      (f) => {
+        void announce('Downloading source', f)
+      },
+      signal,
+    )
     // Whatever survived a previous run under the final name goes: rename onto
     // an existing directory fails, and that file is superseded regardless.
     await rm(home, { recursive: true, force: true }).catch(() => {})

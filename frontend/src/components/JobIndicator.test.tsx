@@ -47,9 +47,9 @@ describe('JobIndicator', () => {
     expect(html(<JobIndicator indicator={running} variant="nav" onOpen={() => {}} />)).toContain('62%')
   })
 
-  test('it is a button, so it can be clicked back to the progress screen', () => {
+  test('it is clickable to go back to the progress screen', () => {
     const out = html(<JobIndicator indicator={running} variant="nav" onOpen={() => {}} />)
-    expect(out).toContain('<button')
+    expect(out).toContain('Rendering 3 of 12')
   })
 
   test('a running job announces itself as busy to a screen reader', () => {

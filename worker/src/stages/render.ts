@@ -51,6 +51,7 @@ export interface RenderClipOptions {
   store: { id: string; s3: S3 }
   segments: TranscriptSegment[]
   burnSubtitles: boolean
+  signal?: AbortSignal
 }
 
 /** Render every requested ratio for one clip and upload the results. */
@@ -65,7 +66,7 @@ export async function renderClip(opts: RenderClipOptions): Promise<void> {
   // Re-encode rather than stream-copy: a copy can only cut on keyframes, and a
   // boundary that drifts a second or two cuts off the hook, which is the whole
   // point of the clip.
-  await cutAccurate(opts.sourcePath, cutPath, clip.startSeconds, duration)
+  await cutAccurate(opts.sourcePath, cutPath, clip.startSeconds, duration, opts.signal)
 
   // One subtitle file per ratio, not per clip: the ASS header declares the
   // output resolution, which is what keeps font sizes in output pixels.
@@ -103,19 +104,20 @@ export async function renderClip(opts: RenderClipOptions): Promise<void> {
 
       if (useAutocrop) {
         try {
-          await runAutocrop(cutPath, outPath, dims, subPath)
+          await runAutocrop(cutPath, outPath, dims, subPath, opts.signal)
         } catch (e) {
+          if (opts.signal?.aborted) throw e
           console.warn(
             `[render] autocrop failed for clip ${clip.idx} ${ratio}, ` +
               `using centre crop: ${(e as Error).message}`,
           )
-          await reframeStatic(cutPath, outPath, dims.w, dims.h, subPath)
+          await reframeStatic(cutPath, outPath, dims.w, dims.h, subPath, opts.signal)
         }
       } else {
-        await reframeStatic(cutPath, outPath, dims.w, dims.h, subPath)
+        await reframeStatic(cutPath, outPath, dims.w, dims.h, subPath, opts.signal)
       }
 
-      await thumbnail(outPath, thumbPath, Math.min(1, duration / 2))
+      await thumbnail(outPath, thumbPath, Math.min(1, duration / 2), opts.signal)
 
       const [mp4, jpg] = await Promise.all([readFile(outPath), readFile(thumbPath)])
       const s3Key = keys.render(opts.jobId, clip.id, ratio)
@@ -152,6 +154,9 @@ export async function renderClip(opts: RenderClipOptions): Promise<void> {
       // Local copies are uploaded; free the disk before the next ratio.
       await Promise.all([unlink(outPath).catch(() => {}), unlink(thumbPath).catch(() => {})])
     } catch (e) {
+      if (opts.signal?.aborted || (e as Error)?.name === 'AbortError') {
+        throw e
+      }
       const message = (e as Error).message.slice(0, 500)
       console.error(`[render] clip ${clip.idx} ${ratio} failed:`, message)
       await db
@@ -186,6 +191,7 @@ async function runAutocrop(
   output: string,
   dims: { w: number; h: number },
   subtitlePath?: string,
+  signal?: AbortSignal,
 ): Promise<void> {
   const args = [
     'python3',
@@ -206,5 +212,5 @@ async function runAutocrop(
 
   // MediaPipe on 4 cores handles a 90s clip well inside this; the timeout is a
   // stuck-process guard, not a performance budget.
-  await run(args, { timeoutMs: 15 * 60_000 })
+  await run(args, { timeoutMs: 15 * 60_000, signal })
 }

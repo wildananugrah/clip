@@ -69,7 +69,9 @@ export async function setStatus(
     .where(eq(jobs.id, jobId))
     .returning()
 
-  if (!row) return
+  // If DB rejected update (e.g. jobs_keep_cancelled trigger dropped cancelled -> completed)
+  // or row vanished, do not emit misleading NOTIFY
+  if (!row || row.status !== patch.status) return
 
   const payload = encodeProgress({
     jobId,
@@ -90,7 +92,8 @@ export async function setStatus(
  * Cancellation flips the row; the worker cannot be interrupted mid-ffmpeg, so
  * it checks between stages. Worst case a user waits out one render.
  */
-export async function assertNotCancelled(jobId: string): Promise<void> {
+export async function assertNotCancelled(jobId: string, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) throw new CancelledError()
   const [row] = await db
     .select({ status: jobs.status })
     .from(jobs)

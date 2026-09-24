@@ -21,6 +21,8 @@ export interface RunOptions {
   env?: Record<string, string>
   /** Kill the process after this many ms. Omit for no limit. */
   timeoutMs?: number
+  /** Kill the process if this signal aborts. */
+  signal?: AbortSignal
 }
 
 /** Run to completion, buffering output. For commands with small, finite output. */
@@ -36,16 +38,27 @@ export async function run(cmd: string[], opts: RunOptions = {}) {
     ? setTimeout(() => proc.kill('SIGKILL'), opts.timeoutMs)
     : undefined
 
+  const onAbort = opts.signal ? () => proc.kill('SIGKILL') : undefined
+  if (opts.signal) {
+    if (opts.signal.aborted) {
+      proc.kill('SIGKILL')
+    } else {
+      opts.signal.addEventListener('abort', onAbort!, { once: true })
+    }
+  }
+
   try {
     const [stdout, stderr, code] = await Promise.all([
       new Response(proc.stdout).text(),
       new Response(proc.stderr).text(),
       proc.exited,
     ])
+    if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
     if (code !== 0) throw new ProcError(cmd, code, stderr)
     return { stdout, stderr }
   } finally {
     if (timer) clearTimeout(timer)
+    if (opts.signal && onAbort) opts.signal.removeEventListener('abort', onAbort)
   }
 }
 
@@ -68,16 +81,27 @@ export async function runBinary(cmd: string[], opts: RunOptions = {}) {
     ? setTimeout(() => proc.kill('SIGKILL'), opts.timeoutMs)
     : undefined
 
+  const onAbort = opts.signal ? () => proc.kill('SIGKILL') : undefined
+  if (opts.signal) {
+    if (opts.signal.aborted) {
+      proc.kill('SIGKILL')
+    } else {
+      opts.signal.addEventListener('abort', onAbort!, { once: true })
+    }
+  }
+
   try {
     const [stdout, stderr, code] = await Promise.all([
       new Response(proc.stdout).arrayBuffer(),
       new Response(proc.stderr).text(),
       proc.exited,
     ])
+    if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
     if (code !== 0) throw new ProcError(cmd, code, stderr)
     return { stdout: Buffer.from(stdout), stderr }
   } finally {
     if (timer) clearTimeout(timer)
+    if (opts.signal && onAbort) opts.signal.removeEventListener('abort', onAbort)
   }
 }
 
@@ -98,6 +122,15 @@ export async function runStreaming(
     stdout: 'pipe',
     stderr: 'pipe',
   })
+
+  const onAbort = opts.signal ? () => proc.kill('SIGKILL') : undefined
+  if (opts.signal) {
+    if (opts.signal.aborted) {
+      proc.kill('SIGKILL')
+    } else {
+      opts.signal.addEventListener('abort', onAbort!, { once: true })
+    }
+  }
 
   const tail: string[] = []
   const pump = async (stream: ReadableStream<Uint8Array>) => {
@@ -129,8 +162,13 @@ export async function runStreaming(
     }
   }
 
-  const [, , code] = await Promise.all([pump(proc.stderr), pump(proc.stdout), proc.exited])
-  if (code !== 0) throw new ProcError(cmd, code, tail.join('\n'))
+  try {
+    const [, , code] = await Promise.all([pump(proc.stderr), pump(proc.stdout), proc.exited])
+    if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    if (code !== 0) throw new ProcError(cmd, code, tail.join('\n'))
+  } finally {
+    if (opts.signal && onAbort) opts.signal.removeEventListener('abort', onAbort)
+  }
 }
 
 /** True when the binary resolves on PATH. */

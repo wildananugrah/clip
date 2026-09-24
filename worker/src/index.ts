@@ -6,6 +6,7 @@
  * ~4GB free.
  */
 import { mkdir } from 'node:fs/promises'
+import pg from 'pg'
 import {
   makeBoss,
   workerAppName,
@@ -20,8 +21,10 @@ import type {
   BackfillJobPayload,
   SourceJobPayload,
 } from '../../shared/queue.ts'
+import { CANCEL_CHANNEL } from '../../shared/progress.ts'
 import { env } from './env.ts'
-import { pool, storage, assertStorageReady } from './db.ts'
+import { db, jobs, pool, storage, assertStorageReady } from './db.ts'
+import { eq } from 'drizzle-orm'
 import { processJob, recutClip, backfillAssets, buildSourceProxy } from './pipeline.ts'
 import { sweepSourceProxies, sweepSources } from './retention.ts'
 import { reclaimSourceLeases, sourcesDir } from './sourceCache.ts'
@@ -29,6 +32,73 @@ import { reconcileOnBoot } from './reconcile.ts'
 import { assertEncoderAvailable } from './ffmpeg.ts'
 
 const boss = makeBoss(env.DATABASE_URL, workerAppName(env.WORKER_HOST_ID))
+
+let shuttingDown = false
+
+// Track in-flight job controllers so NOTIFY job_cancel can abort them immediately
+const activeJobs = new Map<string, AbortController>()
+
+let cancelListener: pg.Client | null = null
+let cancelReconnectTimer: ReturnType<typeof setTimeout> | null = null
+
+async function listenForCancels() {
+  if (shuttingDown) return
+  if (cancelListener) {
+    await cancelListener.end().catch(() => {})
+    cancelListener = null
+  }
+  const c = new pg.Client({
+    connectionString: env.DATABASE_URL,
+    application_name: `${workerAppName(env.WORKER_HOST_ID)}:cancel`,
+  })
+  c.on('notification', (msg) => {
+    if (msg.channel === CANCEL_CHANNEL && msg.payload) {
+      const jobId = msg.payload.trim()
+      const controller = activeJobs.get(jobId)
+      if (controller) {
+        console.log(`[worker] received cancel signal for active job ${jobId}`)
+        controller.abort()
+      }
+    }
+  })
+  const onEnd = () => {
+    c.end().catch(() => {})
+    if (cancelListener === c) cancelListener = null
+    if (!shuttingDown && !cancelReconnectTimer) {
+      cancelReconnectTimer = setTimeout(() => {
+        cancelReconnectTimer = null
+        void listenForCancels()
+      }, 1500)
+    }
+  }
+  c.on('error', (err) => {
+    console.error('[worker] cancel listener error, reconnecting:', err.message)
+    onEnd()
+  })
+  c.on('end', () => {
+    console.warn('[worker] cancel listener connection ended, reconnecting')
+    onEnd()
+  })
+  try {
+    await c.connect()
+    await c.query(`LISTEN ${CANCEL_CHANNEL}`)
+    if (shuttingDown) {
+      await c.end().catch(() => {})
+      return
+    }
+    cancelListener = c
+  } catch (err) {
+    await c.end().catch(() => {})
+    console.error('[worker] failed to connect cancel listener:', (err as Error).message)
+    if (!shuttingDown && !cancelReconnectTimer) {
+      cancelReconnectTimer = setTimeout(() => {
+        cancelReconnectTimer = null
+        void listenForCancels()
+      }, 2000)
+    }
+  }
+}
+void listenForCancels()
 
 boss.on('error', (err) => console.error('[boss]', err))
 
@@ -113,9 +183,17 @@ await boss.work<ProcessJobPayload>(
   async ([job]) => {
     if (!job) return
     console.log(`[worker] processing job ${job.data.jobId}`)
-    // processJob owns its own error handling and writes the failure to the row;
-    // throwing here would only mark the queue entry failed, which no UI reads.
-    await processJob(job.data.jobId)
+    const controller = new AbortController()
+    activeJobs.set(job.data.jobId, controller)
+    try {
+      // processJob owns its own error handling and writes the failure to the row;
+      // throwing here would only mark the queue entry failed, which no UI reads.
+      await processJob(job.data.jobId, controller.signal)
+    } finally {
+      if (activeJobs.get(job.data.jobId) === controller) {
+        activeJobs.delete(job.data.jobId)
+      }
+    }
     console.log(`[worker] finished job ${job.data.jobId}`)
   },
 )
@@ -166,15 +244,20 @@ console.log(
     `work dir ${env.WORK_DIR})`,
 )
 
-let shuttingDown = false
+// let shuttingDown handled at top
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, async () => {
     if (shuttingDown) return
     shuttingDown = true
+    if (cancelReconnectTimer) {
+      clearTimeout(cancelReconnectTimer)
+      cancelReconnectTimer = null
+    }
     console.log(`\n[worker] ${signal} -- finishing current work, then exiting`)
     // stop() waits for in-flight handlers, so a job mid-transcription is not
     // abandoned halfway with its scratch directory left behind.
     await boss.stop({ graceful: true, timeout: 30_000 }).catch(() => {})
+    await cancelListener?.end().catch(() => {})
     await pool.end().catch(() => {})
     process.exit(0)
   })

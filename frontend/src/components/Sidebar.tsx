@@ -15,7 +15,7 @@ const NAV: Array<{ label: string; screen: Screen }> = [
 ]
 
 export function Sidebar() {
-  const { state, goNew, go, goResults, signOut } = useApp()
+  const { state, goNew, go, goResults, signOut, cancelJob } = useApp()
   const allowance = quota(state.quota)
   const job = jobIndicator(state)
 
@@ -36,6 +36,8 @@ export function Sidebar() {
           variant="nav"
           current={state.screen === job.target}
           onOpen={() => go(job.target)}
+          onCancel={() => cancelJob()}
+          cancelling={state.pending === 'cancelJob'}
         />
 
         {NAV.map((item) => {

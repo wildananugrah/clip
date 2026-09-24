@@ -99,6 +99,7 @@ export async function extractAudio(
   output: string,
   onProgress?: (fraction: number) => void,
   totalDuration?: number,
+  signal?: AbortSignal,
 ): Promise<string> {
   await runStreaming(
     [
@@ -126,6 +127,7 @@ export async function extractAudio(
       const t = parseFfmpegTime(line)
       if (t !== null) onProgress(Math.min(1, t / totalDuration))
     },
+    { signal },
   )
   return output
 }
@@ -171,53 +173,65 @@ export async function cutAccurate(
   output: string,
   start: number,
   duration: number,
+  signal?: AbortSignal,
 ): Promise<string> {
-  await run([
-    'ffmpeg',
-    '-nostdin',
-    '-y',
-    '-hide_banner',
-    '-loglevel',
-    'error',
-    '-ss',
-    String(start),
-    '-i',
-    input,
-    '-t',
-    String(duration),
-    ...h264Args(20),
-    '-c:a',
-    'aac',
-    '-b:a',
-    '128k',
-    '-map',
-    '0:v:0',
-    '-map',
-    '0:a?',
-    output,
-  ])
+  await run(
+    [
+      'ffmpeg',
+      '-nostdin',
+      '-y',
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-ss',
+      String(start),
+      '-i',
+      input,
+      '-t',
+      String(duration),
+      ...h264Args(20),
+      '-c:a',
+      'aac',
+      '-b:a',
+      '128k',
+      '-map',
+      '0:v:0',
+      '-map',
+      '0:a?',
+      output,
+    ],
+    { signal },
+  )
   return output
 }
 
 /** Single JPEG poster frame, taken a beat into the clip to avoid a black first frame. */
-export async function thumbnail(input: string, output: string, atSeconds = 1): Promise<string> {
-  await run([
-    'ffmpeg',
-    '-nostdin',
-    '-y',
-    '-hide_banner',
-    '-loglevel',
-    'error',
-    '-ss',
-    String(atSeconds),
-    '-i',
-    input,
-    '-frames:v',
-    '1',
-    '-q:v',
-    '4',
-    output,
-  ])
+export async function thumbnail(
+  input: string,
+  output: string,
+  atSeconds = 1,
+  signal?: AbortSignal,
+): Promise<string> {
+  await run(
+    [
+      'ffmpeg',
+      '-nostdin',
+      '-y',
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-ss',
+      String(atSeconds),
+      '-i',
+      input,
+      '-frames:v',
+      '1',
+      '-q:v',
+      '4',
+      output,
+    ],
+    { signal },
+  )
   return output
 }
 
@@ -231,6 +245,7 @@ export async function reframeStatic(
   outW: number,
   outH: number,
   subtitlePath?: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   const { width, height } = await probeDimensions(input)
   const { w: cropW, h: cropH, x, y } = centreCrop(width, height, outW, outH)
@@ -241,30 +256,33 @@ export async function reframeStatic(
   if (subtitlePath) chain.push(subtitleFilter(subtitlePath))
   chain.push('setsar=1')
 
-  await run([
-    'ffmpeg',
-    '-nostdin',
-    '-y',
-    '-hide_banner',
-    '-loglevel',
-    'error',
-    '-i',
-    input,
-    '-vf',
-    chain.join(','),
-    '-map',
-    '0:v:0',
-    '-map',
-    '0:a?',
-    ...h264Args(20),
-    '-c:a',
-    'aac',
-    '-b:a',
-    '128k',
-    '-movflags',
-    '+faststart',
-    output,
-  ])
+  await run(
+    [
+      'ffmpeg',
+      '-nostdin',
+      '-y',
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      input,
+      '-vf',
+      chain.join(','),
+      '-map',
+      '0:v:0',
+      '-map',
+      '0:a?',
+      ...h264Args(20),
+      '-c:a',
+      'aac',
+      '-b:a',
+      '128k',
+      '-movflags',
+      '+faststart',
+      output,
+    ],
+    { signal },
+  )
   return output
 }
 

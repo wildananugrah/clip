@@ -237,7 +237,7 @@ export const api = {
    */
   quota: () => call<QuotaDTO>('/jobs/quota'),
 
-  cancelJob: (id: string) => call<{ ok: boolean }>(`/jobs/${id}/cancel`, { method: 'POST' }),
+  cancelJob: (id: string) => call<{ ok: boolean; status: string }>(`/jobs/${id}/cancel`, { method: 'POST' }),
 
   regenerate: (id: string) =>
     call<{ jobId: string }>(`/jobs/${id}/regenerate`, { method: 'POST' }),

@@ -39,6 +39,7 @@ export type Pending =
   | 'analyze'
   | 'startJob'
   | 'cancelJob'
+  | `cancelJob:${string}`
   | 'regenerateAll'
   | 'download'
   | 'saveClip'
@@ -764,21 +765,43 @@ export function useSnipline() {
     state.subs,
   ])
 
-  const cancelJob = useCallback(async () => {
-    unsubscribe.current?.()
-    unsubscribe.current = null
-    const id = state.jobId
-    setState((s) => ({
-      ...s,
-      pending: 'cancelJob',
-      screen: 'new',
-      progress: 0,
-      jobDone: false,
-      jobStatus: null,
-    }))
-    if (id) await api.cancelJob(id).catch(() => {})
-    patch({ pending: null })
-    say('Job cancelled.')
+  const cancelJob = useCallback(async (jobId?: string) => {
+    const id = jobId ?? state.jobId
+    if (!id) return
+    const pendingKey = (id === state.jobId ? 'cancelJob' : `cancelJob:${id}`) as import('./useSnipline').Pending
+    patch({ pending: pendingKey })
+    try {
+      const res = await api.cancelJob(id)
+      setState((s) => {
+        const stillCurrent = id === s.jobId
+        if (stillCurrent && res.status === 'cancelled') {
+          unsubscribe.current?.()
+          unsubscribe.current = null
+        }
+        return {
+          ...s,
+          pending: s.pending === pendingKey ? null : s.pending,
+          ...(stillCurrent && res.status === 'cancelled'
+            ? {
+                screen: s.screen === 'processing' ? 'new' : s.screen,
+                progress: 0,
+                jobDone: false,
+                jobStatus: null,
+              }
+            : {}),
+          projects: s.projects.map((p) =>
+            p.id === id ? { ...p, status: res.status as any, stage: res.status === 'cancelled' ? 'Cancelled' : p.stage } : p,
+          ),
+        }
+      })
+      say(res.status === 'cancelled' ? 'Job cancelled.' : `Job already ${res.status}.`)
+    } catch (e) {
+      setState((s) => ({
+        ...s,
+        pending: s.pending === pendingKey ? null : s.pending,
+      }))
+      say(e instanceof ApiError ? e.message : 'Could not cancel job.')
+    }
   }, [patch, say, state.jobId])
 
   const regenerateAll = useCallback(async () => {

@@ -110,6 +110,7 @@ export async function download(
   url: string,
   outDir: string,
   onProgress: (fraction: number) => void,
+  signal?: AbortSignal,
 ): Promise<string> {
   const template = `${outDir}/source.%(ext)s`
   let finalPath = ''
@@ -139,6 +140,7 @@ export async function download(
       // The --print output arrives on stdout as a bare path.
       if (line.startsWith('/') && !line.includes(' ')) finalPath = line.trim()
     },
+    { signal },
   )
 
   if (!finalPath) throw new Error('Download finished but produced no file path.')

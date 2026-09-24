@@ -9,6 +9,7 @@
 import type { ProgressEvent } from './types.ts'
 
 export const NOTIFY_CHANNEL = 'job_progress'
+export const CANCEL_CHANNEL = 'job_cancel'
 
 /**
  * Postgres caps a NOTIFY payload at 8000 bytes. Progress payloads are tiny, but

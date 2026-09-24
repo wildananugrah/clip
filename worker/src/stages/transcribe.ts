@@ -42,13 +42,14 @@ export async function transcribe(
   workDir: string,
   durationSeconds: number,
   onProgress: (fraction: number) => void,
+  signal?: AbortSignal,
 ): Promise<TranscribeResult> {
   await assertWhisperAvailable()
 
   const audioPath = join(workDir, 'audio.mp3')
 
   // Audio extraction is ~5% of the work; keep the bar moving during it.
-  await extractAudio(videoPath, audioPath, (f) => onProgress(f * 0.05), durationSeconds)
+  await extractAudio(videoPath, audioPath, (f) => onProgress(f * 0.05), durationSeconds, signal)
 
   const cuda = env.WHISPER_DEVICE === 'cuda'
   const args = [
@@ -76,12 +77,16 @@ export async function transcribe(
   // No --language means autodetect, which is right when sources vary.
   if (env.WHISPER_LANGUAGE) args.push('--language', env.WHISPER_LANGUAGE)
 
-  await runStreaming(args, (line) => {
-    const t = parseWhisperProgress(line)
-    if (t !== null && durationSeconds > 0) {
-      onProgress(0.05 + 0.95 * Math.min(1, t / durationSeconds))
-    }
-  })
+  await runStreaming(
+    args,
+    (line) => {
+      const t = parseWhisperProgress(line)
+      if (t !== null && durationSeconds > 0) {
+        onProgress(0.05 + 0.95 * Math.min(1, t / durationSeconds))
+      }
+    },
+    { signal },
+  )
 
   const base = basename(audioPath).replace(/\.[^.]+$/, '')
   const jsonPath = join(workDir, `${base}.json`)

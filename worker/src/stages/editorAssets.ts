@@ -121,6 +121,7 @@ export async function buildEditorAssets(opts: {
   startSeconds: number
   endSeconds: number
   durationSeconds?: number
+  signal?: AbortSignal
 }): Promise<EditorAssets> {
   const duration = opts.durationSeconds ?? (await probeDuration(opts.sourcePath))
   const win = windowFor(opts.startSeconds, opts.endSeconds, duration)
@@ -128,67 +129,73 @@ export async function buildEditorAssets(opts: {
   const proxyPath = join(opts.workDir, `${opts.stem}-proxy.mp4`)
   const stripPath = join(opts.workDir, `${opts.stem}-strip.jpg`)
 
-  await run([
-    'ffmpeg',
-    '-nostdin',
-    '-y',
-    '-hide_banner',
-    '-loglevel',
-    'error',
-    // Fast seek, before -i, and duration via -t: the same two rules cutAccurate
-    // follows, and for the same reasons.
-    '-ss',
-    String(win.start),
-    '-i',
-    opts.sourcePath,
-    '-t',
-    String(win.span),
-    '-vf',
-    // -2 keeps width even, which yuv420p requires.
-    'scale=-2:240',
-    ...h264Args(32),
-    // Keyframe every second, so scrubbing lands near where it was dropped
-    // rather than at the previous keyframe several seconds back.
-    '-g',
-    '25',
-    '-c:a',
-    'aac',
-    '-b:a',
-    '48k',
-    '-ac',
-    '1',
-    // Load-bearing: without the moov atom at the front the browser cannot seek
-    // over range requests, and the scrubber silently does nothing.
-    '-movflags',
-    '+faststart',
-    '-map',
-    '0:v:0',
-    '-map',
-    '0:a?',
-    proxyPath,
-  ])
+  await run(
+    [
+      'ffmpeg',
+      '-nostdin',
+      '-y',
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      // Fast seek, before -i, and duration via -t: the same two rules cutAccurate
+      // follows, and for the same reasons.
+      '-ss',
+      String(win.start),
+      '-i',
+      opts.sourcePath,
+      '-t',
+      String(win.span),
+      '-vf',
+      // -2 keeps width even, which yuv420p requires.
+      'scale=-2:240',
+      ...h264Args(32),
+      // Keyframe every second, so scrubbing lands near where it was dropped
+      // rather than at the previous keyframe several seconds back.
+      '-g',
+      '25',
+      '-c:a',
+      'aac',
+      '-b:a',
+      '48k',
+      '-ac',
+      '1',
+      // Load-bearing: without the moov atom at the front the browser cannot seek
+      // over range requests, and the scrubber silently does nothing.
+      '-movflags',
+      '+faststart',
+      '-map',
+      '0:v:0',
+      '-map',
+      '0:a?',
+      proxyPath,
+    ],
+    { signal: opts.signal },
+  )
 
   // From the proxy, not the source: it is already the right window and 240p, so
   // this costs almost nothing next to decoding gigabytes again.
-  await run([
-    'ffmpeg',
-    '-nostdin',
-    '-y',
-    '-hide_banner',
-    '-loglevel',
-    'error',
-    '-i',
-    proxyPath,
-    '-vf',
-    `fps=${STRIP_FRAMES}/${win.span},scale=-2:72,tile=${STRIP_FRAMES}x1`,
-    '-frames:v',
-    '1',
-    '-q:v',
-    '5',
-    stripPath,
-  ])
+  await run(
+    [
+      'ffmpeg',
+      '-nostdin',
+      '-y',
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      proxyPath,
+      '-vf',
+      `fps=${STRIP_FRAMES}/${win.span},scale=-2:72,tile=${STRIP_FRAMES}x1`,
+      '-frames:v',
+      '1',
+      '-q:v',
+      '5',
+      stripPath,
+    ],
+    { signal: opts.signal },
+  )
 
-  const peaks = await peaksOf(proxyPath)
+  const peaks = await peaksOf(proxyPath, opts.signal)
 
   return { proxyPath, stripPath, peaks, window: win }
 }
@@ -201,27 +208,31 @@ export async function buildEditorAssets(opts: {
  * producing zero bytes, so that case answers with a flat waveform instead of
  * taking the whole stage down.
  */
-async function peaksOf(path: string): Promise<number[]> {
+async function peaksOf(path: string, signal?: AbortSignal): Promise<number[]> {
   try {
-    const { stdout } = await runBinary([
-      'ffmpeg',
-      '-nostdin',
-      '-hide_banner',
-      '-loglevel',
-      'error',
-      '-i',
-      path,
-      '-vn',
-      '-ac',
-      '1',
-      '-ar',
-      String(PEAK_RATE),
-      '-f',
-      's16le',
-      '-',
-    ])
+    const { stdout } = await runBinary(
+      [
+        'ffmpeg',
+        '-nostdin',
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-i',
+        path,
+        '-vn',
+        '-ac',
+        '1',
+        '-ar',
+        String(PEAK_RATE),
+        '-f',
+        's16le',
+        '-',
+      ],
+      { signal },
+    )
     return peaksFromPcm(stdout)
-  } catch {
+  } catch (e) {
+    if (signal?.aborted || (e as Error)?.name === 'AbortError') throw e
     return Array.from({ length: PEAK_BUCKETS }, () => 0)
   }
 }

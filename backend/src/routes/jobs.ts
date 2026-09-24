@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
 import { eq, and, desc, exists, inArray, isNull, or, not, sql } from 'drizzle-orm'
-import { db, jobs, videos, clips, renders } from '../db/index.ts'
+import { db, pool, jobs, videos, clips, renders } from '../db/index.ts'
 import { editorGate } from '../editorGate.ts'
 import {
   ownedJob,
@@ -25,6 +25,7 @@ import {
 import { subscribe, ensureListening } from '../events.ts'
 import { isTerminal, MAX_PROMPT_CHARS, RATIOS, TERMINAL_STATUSES } from '../../../shared/types.ts'
 import type { ProjectDTO, QuotaDTO, Ratio } from '../../../shared/types.ts'
+import { CANCEL_CHANNEL, NOTIFY_CHANNEL, encodeProgress } from '../../../shared/progress.ts'
 import { storage } from '../s3.ts'
 
 const createBody = z.object({
@@ -206,11 +207,12 @@ jobsRoutes.post('/:id/cancel', async (c) => {
   if (!job) return c.json({ error: 'Job not found' }, 404)
   if (isTerminal(job.status)) return c.json({ ok: true, status: job.status })
 
-  await cancelJob(id)
-  return c.json({ ok: true, status: 'cancelled' })
+  const finalStatus = await cancelJob(id)
+  return c.json({ ok: true, status: finalStatus })
 })
 
 /** Re-run a job from scratch, reusing the source and its transcript. */
+// Revert unnecessary regenerate route change
 jobsRoutes.post('/:id/regenerate', async (c) => {
   const id = c.req.param('id')
   const job = await ownedJob(c.get('user').id, id)
@@ -392,15 +394,44 @@ jobsRoutes.get('/', async (c) => c.json(await listProjects(c.get('user').id)))
  * One copy, shared by the cancel route, the delete route and
  * backend/scripts/jobs.ts; there used to be one inlined in each route.
  */
-export async function cancelJob(jobId: string) {
-  await db
+export async function cancelJob(jobId: string): Promise<string> {
+  // Only cancel if not already terminal (atomic DB check)
+  const [row] = await db
     .update(jobs)
     .set({ status: 'cancelled', stage: 'Cancelled', completedAt: new Date() })
-    .where(eq(jobs.id, jobId))
+    .where(and(eq(jobs.id, jobId), not(inArray(jobs.status, ['completed', 'failed', 'cancelled']))))
+    .returning({ id: jobs.id })
+
+  if (!row) {
+    const [current] = await db.select({ status: jobs.status }).from(jobs).where(eq(jobs.id, jobId)).limit(1)
+    return current?.status ?? 'cancelled'
+  }
 
   await boss.deleteJob(PROCESS_QUEUE, jobId).catch(() => {
     // Already claimed by a worker; the status write above is what stops it.
   })
+
+  // Wake up and interrupt any worker currently processing this job
+  await pool.query('select pg_notify($1, $2)', [CANCEL_CHANNEL, jobId]).catch(() => {})
+
+  // Emit progress frame only if job is still cancelled (not regenerated to pending mid-flight)
+  const [stillCancelled] = await db
+    .select({ status: jobs.status })
+    .from(jobs)
+    .where(and(eq(jobs.id, jobId), eq(jobs.status, 'cancelled')))
+    .limit(1)
+
+  if (stillCancelled) {
+    const payload = encodeProgress({
+      jobId,
+      status: 'cancelled',
+      stage: 'Cancelled',
+      progress: 0,
+      error: null,
+    })
+    await pool.query('select pg_notify($1, $2)', [NOTIFY_CHANNEL, payload]).catch(() => {})
+  }
+  return 'cancelled'
 }
 
 export async function softDeleteJob(jobId: string) {

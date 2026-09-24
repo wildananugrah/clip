@@ -7,7 +7,7 @@
  */
 import { join } from 'node:path'
 import { mkdir, rm, readFile } from 'node:fs/promises'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, and, not, inArray } from 'drizzle-orm'
 import { db, jobs, videos, transcripts, clips, renders, recommendationRounds } from './db.ts'
 import { env } from './env.ts'
 import { report, setStatus, assertNotCancelled, CancelledError, forgetJob } from './progress.ts'
@@ -27,7 +27,7 @@ import type { TranscriptSegment } from '../../shared/schema.ts'
 import { tryFetchYouTubeSubtitles } from './youtube_subs.ts'
 import type { S3 } from '../../shared/s3.ts'
 
-export async function processJob(jobId: string): Promise<void> {
+export async function processJob(jobId: string, signal?: AbortSignal): Promise<void> {
   const workDir = join(env.WORK_DIR, jobId)
   // Declared out here so `finally` can give it back on every exit path. A lease
   // that is never released makes its file immortal until this host reboots.
@@ -36,7 +36,7 @@ export async function processJob(jobId: string): Promise<void> {
   try {
     const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1)
     if (!job) throw new Error(`Job ${jobId} no longer exists`)
-    if (job.status === 'cancelled') throw new CancelledError()
+    if (job.status === 'cancelled' || signal?.aborted) throw new CancelledError()
 
     const [video] = await db.select().from(videos).where(eq(videos.id, job.videoId)).limit(1)
     if (!video) throw new Error('Source video row is missing')
@@ -47,6 +47,7 @@ export async function processJob(jobId: string): Promise<void> {
     // this job whole instead of scattered across two buckets.
     const store = await storage.active()
 
+    await assertNotCancelled(jobId, signal)
     await setStatus(jobId, {
       status: 'downloading',
       stage: 'Starting',
@@ -58,14 +59,14 @@ export async function processJob(jobId: string): Promise<void> {
     await mkdir(workDir, { recursive: true })
 
     // --- 1. download ---------------------------------------------------------
-    await assertNotCancelled(jobId)
+    await assertNotCancelled(jobId, signal)
     // Held for the whole job: everything below reads this file, and the sweep
-    // must not take it away mid-render. Released in `finally`.
-    lease = await acquireSource(jobId, video)
+    // must not take it away mid-render. Released in `finally`
+    lease = await acquireSource(jobId, video, { signal })
     const sourcePath = lease.path
 
     // --- 2. transcribe -------------------------------------------------------
-    await assertNotCancelled(jobId)
+    await assertNotCancelled(jobId, signal)
     const segments = await ensureTranscript(
       jobId,
       video.id,
@@ -74,10 +75,11 @@ export async function processJob(jobId: string): Promise<void> {
       video.durationSeconds,
       workDir,
       store,
+      signal,
     )
 
     // --- 3. analyse ----------------------------------------------------------
-    await assertNotCancelled(jobId)
+    await assertNotCancelled(jobId, signal)
     /**
      * ponytail: the bar cannot move during the model call -- the provider
      * streams no progress, and inventing a creeping percentage would be a lie
@@ -113,6 +115,7 @@ export async function processJob(jobId: string): Promise<void> {
       // Read off the job row, which is why regenerate honours the brief without
       // knowing it exists: it re-runs this same row.
       brief: job.prompt,
+      signal,
     })
 
     // The scoring is the long half of this stage; validation is fast. Moving
@@ -192,7 +195,7 @@ export async function processJob(jobId: string): Promise<void> {
     // --- 4. render -----------------------------------------------------------
     const ratios = RATIOS.filter((r) => (job.formats as Record<string, boolean>)[r])
     for (const [i, clip] of clipRows.entries()) {
-      await assertNotCancelled(jobId)
+      await assertNotCancelled(jobId, signal)
       await report(jobId, 'rendering', `Rendering ${i + 1} of ${clipRows.length}`, i / clipRows.length)
 
       await renderClip({
@@ -204,15 +207,19 @@ export async function processJob(jobId: string): Promise<void> {
         segments,
         burnSubtitles: job.burnSubtitles,
         store,
+        signal,
       })
 
-      await storeEditorAssets(clip, sourcePath, workDir, video.durationSeconds, store)
+      await storeEditorAssets(clip, sourcePath, workDir, video.durationSeconds, store, signal)
     }
 
     // --- 5. finalize ---------------------------------------------------------
+    await assertNotCancelled(jobId, signal)
     await setStatus(jobId, { status: 'rendering', stage: 'Cleaning up', progress: 96 })
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
 
+    await assertNotCancelled(jobId, signal)
+    if (signal?.aborted) throw new CancelledError()
     await setStatus(jobId, {
       status: 'completed',
       stage: 'Done',
@@ -227,12 +234,23 @@ export async function processJob(jobId: string): Promise<void> {
     // in `finally` for the sweep to reclaim on its own schedule.)
     await rm(workDir, { recursive: true, force: true }).catch(() => {})
 
-    if (e instanceof CancelledError) {
-      await setStatus(jobId, {
-        status: 'cancelled',
-        stage: 'Cancelled',
-        completedAt: new Date(),
-      }).catch(() => {})
+    if (e instanceof CancelledError || signal?.aborted || (e as Error)?.name === 'AbortError') {
+      // Atomic update: only set cancelled if row is currently in a cancellable state
+      // (not pending, which means regenerate() was called)
+      await db
+        .update(jobs)
+        .set({
+          status: 'cancelled',
+          stage: 'Cancelled',
+          completedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(jobs.id, jobId),
+            not(inArray(jobs.status, ['completed', 'pending', 'cancelled'])),
+          ),
+        )
+        .catch(() => {})
       return
     }
 
@@ -259,6 +277,7 @@ async function ensureTranscript(
   durationSeconds: number,
   workDir: string,
   store: { id: string; s3: S3 },
+  signal?: AbortSignal,
 ): Promise<TranscriptSegment[]> {
   const [existing] = await db
     .select()
@@ -284,7 +303,7 @@ async function ensureTranscript(
     await report(jobId, 'transcribing', 'Fetching captions', 0)
   }
   let result = env.PREFER_YOUTUBE_SUBTITLES
-    ? await tryFetchYouTubeSubtitles(videoUrl, workDir, `[pipeline ${jobId}]`)
+    ? await tryFetchYouTubeSubtitles(videoUrl, workDir, `[pipeline ${jobId}]`, signal)
     : null
 
   // Captions arrive whole rather than progressively, so this is the only
@@ -295,7 +314,7 @@ async function ensureTranscript(
   if (!result) {
     result = await transcribe(sourcePath, workDir, durationSeconds, (f) => {
       void report(jobId, 'transcribing', 'Transcribing', f)
-    })
+    }, signal)
   }
 
   let srtKey: string | null = null
@@ -336,6 +355,7 @@ async function storeEditorAssets(
   workDir: string,
   durationSeconds: number,
   store: { id: string; s3: S3 },
+  signal?: AbortSignal,
 ): Promise<void> {
   try {
     const built = await buildEditorAssets({
@@ -345,6 +365,7 @@ async function storeEditorAssets(
       startSeconds: clip.startSeconds,
       endSeconds: clip.endSeconds,
       durationSeconds,
+      signal,
     })
 
     const proxyKey = keys.proxy(clip.jobId, clip.id)
@@ -382,6 +403,7 @@ async function storeEditorAssets(
       rm(built.stripPath, { force: true }).catch(() => {}),
     ])
   } catch (e) {
+    if (signal?.aborted || (e as Error)?.name === 'AbortError') throw e
     console.warn(`[pipeline] editor assets for clip ${clip.id} failed:`, (e as Error).message)
   }
 }
