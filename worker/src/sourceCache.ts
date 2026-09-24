@@ -27,9 +27,9 @@
  *     That is what makes a wrong WORKER_HOST_ID cost a re-download rather than
  *     a render failing on a missing path.
  */
-import { createWriteStream } from 'node:fs'
+import { createWriteStream, createReadStream } from 'node:fs'
 import { pipeline } from 'node:stream/promises'
-import { mkdir, rename, rm, readdir, stat, access, readFile } from 'node:fs/promises'
+import { mkdir, rename, rm, readdir, stat, access } from 'node:fs/promises'
 import { join, basename } from 'node:path'
 import { eq, and, sql } from 'drizzle-orm'
 import { db, videos, videoSourceCache, storage, keys } from './db.ts'
@@ -257,15 +257,17 @@ async function downloadAndClaim(
 
   const { size } = await stat(path)
 
-  // Upload to S3 so any other worker can reuse this source without re-downloading from YouTube
-  try {
-    const store = await storage.active()
-    const s3Key = keys.sourceVideo(video.id)
-    const fileBuf = await readFile(path)
-    await store.s3.upload(s3Key, fileBuf, 'video/mp4')
-  } catch (e) {
-    console.warn(`[sources] S3 upload failed for ${video.id}:`, (e as Error).message)
-  }
+  // Upload to S3 in background without blocking the pipeline
+  void (async () => {
+    try {
+      const store = await storage.active()
+      const s3Key = keys.sourceVideo(video.id)
+      const stream = createReadStream(path)
+      await store.s3.upload(s3Key, stream, 'video/mp4', size)
+    } catch (e) {
+      console.warn(`[sources] async S3 upload failed for ${video.id}:`, (e as Error).message)
+    }
+  })()
 
   await db
     .insert(videoSourceCache)

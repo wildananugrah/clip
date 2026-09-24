@@ -35,13 +35,14 @@ export function makeS3(cfg: S3Config) {
     client,
     bucket: cfg.bucket,
 
-    async upload(key: string, body: Uint8Array | Buffer, contentType: string) {
+    async upload(key: string, body: Uint8Array | Buffer | NodeJS.ReadableStream, contentType: string, contentLength?: number) {
       await client.send(
         new PutObjectCommand({
           Bucket: cfg.bucket,
           Key: key,
           Body: body,
           ContentType: contentType,
+          ContentLength: contentLength,
         }),
       )
       return key
