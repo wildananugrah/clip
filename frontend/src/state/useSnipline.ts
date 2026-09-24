@@ -680,6 +680,22 @@ export function useSnipline() {
       void loadQuota()
     } catch (e) {
       fail(e)
+
+      /**
+       * 409 means the server has a job running for this user -- but this tab
+       * may not know which one. It only asks at page load, so a job started on
+       * another device, or one that kept running after a cancel here, is
+       * invisible to it, and the toast says "cancel it" on a screen with
+       * nothing to cancel. Adopt the job the way a reload would, and show its
+       * progress, which is where Cancel lives.
+       */
+      if (e instanceof ApiError && e.status === 409) {
+        const running = await api.activeJob().catch(() => null)
+        if (running) {
+          setState((s) => ({ ...mergeJob(s, running), screen: 'processing' }))
+          watchJob(running.id)
+        }
+      }
     }
   }, [
     patch,

@@ -4,7 +4,7 @@
  * The row is the source of truth; the NOTIFY is only a wake-up for connected
  * browsers. That ordering is what makes a mid-job refresh correct.
  */
-import { eq } from 'drizzle-orm'
+import { and, eq, ne } from 'drizzle-orm'
 import { db, jobs, pool } from './db.ts'
 import { NOTIFY_CHANNEL, encodeProgress } from '../../shared/progress.ts'
 import { stageProgress } from '../../shared/types.ts'
@@ -66,9 +66,26 @@ export async function setStatus(
       ...(patch.startedAt ? { startedAt: patch.startedAt } : {}),
       ...(patch.completedAt ? { completedAt: patch.completedAt } : {}),
     })
-    .where(eq(jobs.id, jobId))
+    .where(
+      /**
+       * A cancelled job stays cancelled. The cancel route flips the row and
+       * trusts the worker to notice at the next stage boundary, but progress
+       * writes happen INSIDE stages -- acquireSource announcing "Downloading
+       * source" is one -- and an unconditional update put the job straight back
+       * to `downloading` after the user had cancelled it. From then on it
+       * counted as running, so every new job was refused, while the UI (which
+       * had seen its cancel succeed) showed nothing to cancel.
+       *
+       * Writing 'cancelled' itself stays allowed: the pipeline's CancelledError
+       * path does exactly that, and its NOTIFY is what tells other open tabs.
+       */
+      patch.status === 'cancelled'
+        ? eq(jobs.id, jobId)
+        : and(eq(jobs.id, jobId), ne(jobs.status, 'cancelled')),
+    )
     .returning()
 
+  // No row: gone, or cancelled under us. Either way there is nothing to announce.
   if (!row) return
 
   const payload = encodeProgress({
