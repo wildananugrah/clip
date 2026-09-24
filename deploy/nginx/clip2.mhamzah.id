@@ -1,112 +1,40 @@
-# clip2.mhamzah.id -- the clip app: SPA at /, API under /api.
+# clip2.mhamzah.id -- RETIRED. The app lives at clip2.id; this only redirects.
 #
-# This file replaced a config inherited from an unrelated streaming product. Its
-# /users, /streams, /communities and /webhooks blocks proxied to a backend whose
-# source is not in this repo, and its /hls block fronted MediaMTX, which clip
-# does not run. They are gone rather than commented out: routing live traffic to
-# a service this repo knows nothing about is not something to keep "just in
-# case", and port 3004 -- which every one of those blocks named -- belongs to a
-# DIFFERENT application on this box.
+# Every request here is sent to the same path and query on https://clip2.id, so
+# bookmarks, shared links and deep links (/login?error=..., a project URL) all
+# keep working, just on the new name. 301, permanent: browsers and search
+# engines update to the new address rather than asking again.
 #
-# clip's API listens on 3014 (PORT in the root .env). scripts/deploy.sh refuses
-# to run if that number and the proxy_pass below disagree.
+# Why redirect rather than keep serving the app here too: the app's own address
+# is PUBLIC_API_URL=https://clip2.id, and Google sign-in returns to that host.
+# Started on this domain, sign-in set its handshake cookies HERE and then came
+# back to clip2.id without them, failing as "sign-in link expired". Serving one
+# name is what makes sign-in work for everyone.
+#
+# NOT installed by scripts/deploy.sh, which syncs only deploy/nginx/clip2.id
+# ($SITE). Install this by hand after changing it:
+#
+#   sudo cp deploy/nginx/clip2.mhamzah.id /etc/nginx/sites-available/
+#   sudo nginx -t && sudo systemctl reload nginx
+
 server {
   listen 443 ssl;
   listen [::]:443 ssl;
   server_name clip2.mhamzah.id;
 
+  # Still needed: a browser has to complete TLS with this name before it can be
+  # told to go elsewhere. certbot keeps renewing it as before.
   ssl_certificate /etc/letsencrypt/live/clip2.mhamzah.id/fullchain.pem;
   ssl_certificate_key /etc/letsencrypt/live/clip2.mhamzah.id/privkey.pem;
 
-  root /var/www/html/clip2/dist;
-  index index.html;
-
-  # NO GATE HERE -- BY DESIGN, AND NO LONGER BECAUSE THERE ISN'T ONE.
-  #
-  # This vhost carried auth_basic until 2026-09-20, because the API's own
-  # API_TOKEN was inlined into the JS bundle at build time and so was public.
-  # Tier C replaced that with Google sign-in and a session cookie, which the
-  # application enforces: every /api route except /api/health and /api/auth/*
-  # refuses without a session (backend/src/auth.ts).
-  #
-  # So nothing needs to be added here -- but note what that means: this config is
-  # no longer what protects the box. If you ever see POST /api/jobs accepted
-  # without a cookie, the bug is in the API, not in nginx. deploy.sh asserts a 401
-  # on /api/projects for exactly that reason.
-  #
-  # Cookies pass through the proxy untouched; there is nothing to configure.
-
-  # Nothing is uploaded through nginx -- sources are fetched by the worker and
-  # renders are served out. This only needs to cover JSON request bodies.
-  client_max_body_size 1M;
-
-  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-  add_header X-Frame-Options "SAMEORIGIN" always;
-  add_header X-Content-Type-Options "nosniff" always;
-  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-
-  gzip on;
-  gzip_vary on;
-  gzip_min_length 1024;
-  gzip_proxied any;
-  gzip_comp_level 6;
-  gzip_types text/plain text/css text/xml application/json application/javascript application/xml+rss application/atom+xml image/svg+xml;
-
-  # Vite content-hashes these, so they can never go stale behind a long cache.
-  # NOTE: an add_header here drops the server-level headers above for this
-  # location -- that is nginx's inheritance rule, not an oversight. Acceptable
-  # for immutable static assets; the document response still carries them.
-  location /assets/ {
-    expires 1y;
-    add_header Cache-Control "public, immutable";
-  }
-
-  # THE API. Every backend route lives under /api, including /api/media, so one
-  # prefix covers all of them. A per-route block set is what let earlier configs
-  # develop gaps where an unlisted route fell through to the SPA and returned
-  # index.html instead of JSON. A single prefix cannot grow that gap.
-  #
-  # `^~` so no regex location can claim it first.
-  location ^~ /api/ {
-    proxy_pass http://127.0.0.1:3014;
-
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-
-    # GET /api/jobs/:id/events is Server-Sent Events, and buffering is what
-    # breaks it: nginx would hold the progress frames and release them in
-    # batches, so the bar sits frozen through a 40-minute transcription and then
-    # jumps. The API already sends a ping every 20s to survive the 60s read
-    # timeout, but no keepalive can defeat buffering.
-    #
-    # This is set for the whole prefix rather than a nested location because
-    # `^~` stops nginx evaluating regex locations, so a regex for the events
-    # path would never be reached. Unbuffered also suits /api/media, which
-    # streams tens of MB of video.
-    proxy_http_version 1.1;
-    proxy_set_header Connection "";
-    proxy_buffering off;
-    proxy_cache off;
-    proxy_read_timeout 3600s;
-    proxy_send_timeout 3600s;
-  }
-
-  # SPA fallback -- client-side routes are not files on disk.
-  location / {
-    add_header Vary Accept always;
-    try_files $uri $uri/ /index.html;
-  }
+  return 301 https://clip2.id$request_uri;
 }
 
 server {
-  if ($host = clip2.mhamzah.id) {
-    return 301 https://$host$request_uri;
-  } # managed by Certbot
-
-  listen 80 ;
-  listen [::]:80 ;
+  listen 80;
+  listen [::]:80;
   server_name clip2.mhamzah.id;
-  return 404; # managed by Certbot
+
+  # Straight to the new name, not via https://clip2.mhamzah.id first: one hop.
+  return 301 https://clip2.id$request_uri;
 }
