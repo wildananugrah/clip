@@ -43,7 +43,7 @@ beforeAll(async () => {
       email: 'gate@test.invalid',
       name: null,
       pictureUrl: null,
-      dailyJobLimit: null,
+      monthlyJobLimit: null,
       storageLimitBytes: null,
     })
     await next()

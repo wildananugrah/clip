@@ -28,7 +28,7 @@ describe('quota script arguments', () => {
 
   test('--limit default clears the override', () => {
     // null is the value written to the column, which is what makes the user
-    // follow QUOTA_JOBS_PER_DAY again.
+    // follow QUOTA_JOBS_PER_MONTH again.
     expect(parseArgs(['a@b.com', '--limit', 'default'])).toMatchObject({
       email: 'a@b.com',
       limit: null,

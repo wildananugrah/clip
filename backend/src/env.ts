@@ -24,8 +24,8 @@ const schema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1, 'GOOGLE_CLIENT_SECRET is required'),
   /** How long a login lasts. Nothing here calls a Google API, so there is no refresh. */
   SESSION_TTL_DAYS: z.coerce.number().default(30),
-  /** Per-user jobs per rolling 24h. Worker concurrency is 1; see quota.ts. */
-  QUOTA_JOBS_PER_DAY: z.coerce.number().default(3),
+  /** Per-user jobs per calendar month (UTC). Worker concurrency is 1; see quota.ts. */
+  QUOTA_JOBS_PER_MONTH: z.coerce.number().default(20),
   /** Per-user rendered GB. In GB, not bytes, because a human sets it. */
   QUOTA_STORAGE_GB: z.coerce.number().default(5),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),

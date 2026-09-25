@@ -86,7 +86,7 @@ export interface SnipState {
    */
   pending: Pending
   /**
-   * The server's daily allowance, or null until it answers. Replaces a local
+   * The server's monthly allowance, or null until it answers. Replaces a local
    * counter that started at zero every reload and so reported a full allowance
    * after a video had already been generated.
    */
@@ -565,7 +565,7 @@ export function useSnipline() {
 
   /**
    * Refetch the allowance. Called at boot and after anything that spends or
-   * frees a slot, rather than adjusting a local number -- the rolling 24h window
+   * frees a slot, rather than adjusting a local number -- the monthly count
    * only exists on the server, and guessing it is what produced "3 of 3 videos
    * left" after one had been generated.
    */

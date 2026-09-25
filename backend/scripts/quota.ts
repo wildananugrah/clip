@@ -2,27 +2,26 @@
  * Read and adjust one user's clip allowance, from the box.
  *
  *   bun run quota <email>                   show what the server would decide
- *   bun run quota <email> --limit 20        give this user 20 jobs per 24h
- *   bun run quota <email> --limit default   put them back on QUOTA_JOBS_PER_DAY
+ *   bun run quota <email> --limit 20        give this user 20 jobs per month
+ *   bun run quota <email> --limit default   put them back on QUOTA_JOBS_PER_MONTH
  *   bun run quota <email> --storage 20      give this user 20 GB of renders
  *   bun run quota <email> --storage default put them back on QUOTA_STORAGE_GB
  *   bun run quota <email> --release         cancel a job that is stuck running
  *
  * Three different things block a new job (see quota.ts): a job still running,
- * the rolling 24-hour count, and the rendered bytes held. The status output
- * names which one is biting, because raising the daily limit does nothing for a
+ * this calendar month's count (UTC), and the rendered bytes held. The status output
+ * names which one is biting, because raising the monthly limit does nothing for a
  * user who is out of disk, and --release does nothing for one who is simply out
  * of slots.
  *
- * Nothing here rewrites jobs.created_at: the window is derived from it and the
- * UI reports "resets at" from the oldest row, so backdating would buy a slot by
- * lying about history. The override column is the honest lever.
+ * Nothing here rewrites jobs.created_at: the count is derived from it, so
+ * backdating a row into last month would buy a slot by lying about history. The override column is the honest lever.
  */
 import { and, eq, gte, inArray } from 'drizzle-orm'
 import { users, jobs, jobStatus } from '../../shared/schema.ts'
 import { isTerminal } from '../../shared/types.ts'
 import { fmtBytes } from '../../shared/format.ts'
-import { quotaVerdict } from '../src/quota.ts'
+import { quotaVerdict, quotaWindow } from '../src/quota.ts'
 
 const GB = 1024 ** 3
 
@@ -87,7 +86,6 @@ export function parseArgs(argv: string[]): QuotaArgs {
 }
 
 const ACTIVE = jobStatus.enumValues.filter((s) => !isTerminal(s))
-const WINDOW_MS = 86_400_000
 
 async function main() {
   const args = parseArgs(Bun.argv.slice(2))
@@ -116,11 +114,11 @@ async function main() {
   }
 
   if (args.limit !== undefined) {
-    await db.update(users).set({ dailyJobLimit: args.limit }).where(eq(users.id, user.id))
+    await db.update(users).set({ monthlyJobLimit: args.limit }).where(eq(users.id, user.id))
     console.log(
       args.limit === null
-        ? `Daily override cleared — back on the default of ${env.QUOTA_JOBS_PER_DAY}/day.`
-        : `Daily limit for ${user.email} set to ${args.limit}.`,
+        ? `Monthly override cleared — back on the default of ${env.QUOTA_JOBS_PER_MONTH}/month.`
+        : `Monthly limit for ${user.email} set to ${args.limit}.`,
     )
   }
 
@@ -133,7 +131,7 @@ async function main() {
     )
   }
 
-  const since = new Date(Date.now() - WINDOW_MS)
+  const { start: since, resetsAt } = quotaWindow()
   const recent = await db
     .select({ createdAt: jobs.createdAt })
     .from(jobs)
@@ -149,28 +147,26 @@ async function main() {
 
   // What the column holds AFTER this run's writes, so the status lines describe
   // the state the server will actually see -- not the one we loaded on entry.
-  const limitOverride = args.limit === undefined ? user.dailyJobLimit : args.limit
+  const limitOverride = args.limit === undefined ? user.monthlyJobLimit : args.limit
   const storageOverride =
     args.storageBytes === undefined ? user.storageLimitBytes : args.storageBytes
-  const effectiveLimit = limitOverride ?? env.QUOTA_JOBS_PER_DAY
+  const effectiveLimit = limitOverride ?? env.QUOTA_JOBS_PER_MONTH
   const effectiveStorage = storageOverride ?? env.QUOTA_STORAGE_GB * GB
   const source = (o: number | null) => (o === null ? '(global default)' : '(per-user override)')
   const refusal = quotaVerdict({
     activeCount: active.length,
-    dailyCount: recent.length,
-    dailyLimit: effectiveLimit,
+    monthlyCount: recent.length,
+    monthlyLimit: effectiveLimit,
     storageBytes: held,
     storageLimitBytes: effectiveStorage,
   })
 
   console.log(`\n${user.email} (${user.id})`)
-  console.log(`  limit        ${effectiveLimit}/day ${source(limitOverride)}`)
-  console.log(`  used         ${recent.length} in the last 24h`)
+  console.log(`  limit        ${effectiveLimit}/month ${source(limitOverride)}`)
+  console.log(`  used         ${recent.length} since ${since.toISOString().slice(0, 10)} (UTC)`)
   console.log(`  storage      ${fmtBytes(held)} of ${fmtBytes(effectiveStorage)} ${source(storageOverride)}`)
   console.log(`  running now  ${active.length}${active.length ? ` (${active.map((j) => j.status).join(', ')})` : ''}`)
-  if (recent[0]) {
-    console.log(`  oldest ages out at ${new Date(recent[0].createdAt.getTime() + WINDOW_MS).toISOString()}`)
-  }
+  console.log(`  resets at    ${resetsAt.toISOString()}`)
   console.log(refusal ? `  BLOCKED — ${refusal.message}` : '  CAN START A NEW JOB')
 }
 

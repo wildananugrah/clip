@@ -155,10 +155,10 @@ useless to anyone else.
 expensive stage in the pipeline, shared by everyone who clips the same link.
 
 Signup is open to any Google account, so quota is load-bearing rather than
-optional: one active job per user, and `QUOTA_JOBS_PER_DAY` (default 3) per
-rolling 24 hours. Worker concurrency is 1, so without it one account can occupy
-the box all day. Refusals are 409 for the running-job conflict and 429 for the
-daily cap.
+optional: one active job per user, and `QUOTA_JOBS_PER_MONTH` (default 20) per
+calendar month, counted in UTC and reset on the 1st. Worker concurrency is 1, so
+without it one account can occupy the box all day. Refusals are 409 for the
+running-job conflict and 429 for the monthly cap.
 
 `API_TOKEN` survives only as the HMAC key for media URLs. It used to gate `/api`,
 but the SPA inlined it at build time and published it in the JS bundle, which is

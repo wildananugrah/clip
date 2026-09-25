@@ -2,7 +2,7 @@
  * Deleting a project, against a real Postgres.
  *
  * The whole point is a soft delete: the project must vanish from the user's list
- * and stop being reachable, while its row survives so the daily quota cannot be
+ * and stop being reachable, while its row survives so the monthly quota cannot be
  * reset by deleting yesterday's work. That is a property of the SQL, so the test
  * has to run the SQL.
  *

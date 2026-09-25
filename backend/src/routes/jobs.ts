@@ -12,7 +12,7 @@ import {
   countJobsSince,
   storageUsage,
 } from '../ownership.ts'
-import { quotaVerdict } from '../quota.ts'
+import { quotaVerdict, quotaWindow } from '../quota.ts'
 import { env } from '../env.ts'
 import { toJobDTO, toSourceDTO } from '../mappers.ts'
 import {
@@ -64,10 +64,10 @@ jobsRoutes.post('/', async (c) => {
   const user = c.get('user')
   const refusal = quotaVerdict({
     activeCount: await countActiveJobs(user.id),
-    dailyCount: await countJobsSince(user.id, new Date(Date.now() - 86_400_000)),
+    monthlyCount: await countJobsSince(user.id, quotaWindow().start),
     // A per-user override exists so one account can be raised (or cut) without
     // moving the global default for everyone. See backend/scripts/quota.ts.
-    dailyLimit: user.dailyJobLimit ?? env.QUOTA_JOBS_PER_DAY,
+    monthlyLimit: user.monthlyJobLimit ?? env.QUOTA_JOBS_PER_MONTH,
     storageBytes: await storageUsage(user.id),
     storageLimitBytes: user.storageLimitBytes ?? env.QUOTA_STORAGE_GB * 1024 ** 3,
   })
@@ -116,18 +116,18 @@ jobsRoutes.get('/active', async (c) => {
 })
 
 /**
- * The daily allowance, as the server counts it. Also above '/:id'.
+ * The monthly allowance, as the server counts it. Also above '/:id'.
  *
  * The UI used to keep its own counter, incrementing on job creation. It started
  * at zero on every reload and knew nothing about jobs created on another device,
  * so it reported three videos left after one had been generated. The server is
- * the only place the rolling window actually exists.
+ * the only place the count actually exists.
  */
 jobsRoutes.get('/quota', async (c) => {
-  const windowStart = new Date(Date.now() - 86_400_000)
+  const window = quotaWindow()
   const user = c.get('user')
-  const { used, oldestAt } = await quotaUsage(user.id, windowStart)
-  const limit = user.dailyJobLimit ?? env.QUOTA_JOBS_PER_DAY
+  const { used } = await quotaUsage(user.id, window.start)
+  const limit = user.monthlyJobLimit ?? env.QUOTA_JOBS_PER_MONTH
 
   const quota: QuotaDTO = {
     used,
@@ -135,9 +135,8 @@ jobsRoutes.get('/quota', async (c) => {
     remaining: Math.max(0, limit - used),
     storageBytes: await storageUsage(user.id),
     storageLimitBytes: user.storageLimitBytes ?? env.QUOTA_STORAGE_GB * 1024 ** 3,
-    // 24h after the oldest job in the window, that job drops out and its slot
-    // comes back. Null when nothing is spent.
-    resetsAt: oldestAt ? new Date(oldestAt.getTime() + 86_400_000).toISOString() : null,
+    // The whole allowance comes back at once, on the 1st of next month.
+    resetsAt: window.resetsAt.toISOString(),
   }
   return c.json(quota)
 })
@@ -381,7 +380,7 @@ jobsRoutes.get('/', async (c) => c.json(await listProjects(c.get('user').id)))
  * Delete a project: purge its clips and their S3 objects, then tombstone the row.
  *
  * The row stays because `quotaUsage` counts rows -- a hard delete would refund a
- * daily slot and let anyone reset the cap by clearing their history. The video
+ * monthly slot and let anyone reset the cap by clearing their history. The video
  * and transcript rows are deliberately untouched: they are a URL-keyed cache
  * shared between users, and `jobs.video_id` cascades, so deleting a video would
  * take somebody else's jobs with it.

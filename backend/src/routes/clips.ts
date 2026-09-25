@@ -185,15 +185,15 @@ clipsRoutes.post('/:id/copy', editorGate, async (c) => {
   if (bad) return c.json({ error: bad }, 400)
 
   /**
-   * A copy adds renders, and nothing else bounds how many: the daily quota
+   * A copy adds renders, and nothing else bounds how many: the monthly quota
    * counts jobs, and this creates clips inside one that is already paid for.
    * The storage ceiling is the honest limit to apply.
    */
   const user = c.get('user')
   const refusal = quotaVerdict({
     activeCount: 0,
-    dailyCount: 0,
-    dailyLimit: Number.POSITIVE_INFINITY,
+    monthlyCount: 0,
+    monthlyLimit: Number.POSITIVE_INFINITY,
     storageBytes: await storageUsage(user.id),
     storageLimitBytes: user.storageLimitBytes ?? env.QUOTA_STORAGE_GB * 1024 ** 3,
   })

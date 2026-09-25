@@ -86,12 +86,9 @@ export async function countActiveJobs(userId: string): Promise<number> {
 }
 
 /**
- * How much of the daily allowance this user has spent, and when the oldest job
- * in the window ages out of it.
- *
- * `oldestAt` exists so the UI can say when a slot actually frees up: the
- * allowance is a ROLLING 24 hours, not a calendar month, so "resets on the 1st"
- * would be a lie.
+ * How much of the monthly allowance this user has spent since `since` (the 1st
+ * of the month -- see quotaWindow in quota.ts), and when the oldest counted job
+ * was created.
  *
  * Every job counts, cancelled ones included. By the time you cancel, the
  * download has usually already spent the bandwidth and the disk, so returning
@@ -113,10 +110,10 @@ export async function quotaUsage(
 /**
  * Rendered bytes this user is holding, from `renders.size_bytes`.
  *
- * Unlike the daily count, this one DOES shrink when a project is deleted:
+ * Unlike the monthly count, this one DOES shrink when a project is deleted:
  * deleting drops the clip rows (renders cascade) and the S3 objects with them,
  * so the space really is back. That is the difference between a rate limit and
- * a disk -- refunding a daily slot would make the cap free to sidestep, whereas
+ * a disk -- refunding a monthly slot would make the cap free to sidestep, whereas
  * refusing to refund the bytes would bill for files nobody is storing.
  */
 export async function storageUsage(userId: string): Promise<number> {

@@ -297,7 +297,7 @@ export function SetupScreen() {
               {etaForCount(src.durationSeconds, state.count)}
               {allowance.known &&
                 (allowance.exhausted
-                  ? ' · no videos left today'
+                  ? ' · no videos left this month'
                   : ` · uses 1 of ${allowance.remaining} left`)}
             </span>
           </div>

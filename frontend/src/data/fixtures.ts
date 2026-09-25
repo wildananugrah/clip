@@ -152,7 +152,7 @@ export const CLIP_COUNTS = [6, 12, 24]
  * authoritative and will answer 400 for anything outside this range.
  *
  * The ceiling is not arbitrary -- every clip is a separate ffmpeg cut, reframe
- * and subtitle burn on a 4-core box, and the daily quota counts jobs rather than
+ * and subtitle burn on a 4-core box, and the monthly quota counts jobs rather than
  * clips, so an uncapped number would let one job hold the worker for hours.
  */
 export const CLIP_COUNT_MIN = 1

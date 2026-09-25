@@ -27,7 +27,7 @@ function QuotaRow({
 
 export function PlanScreen() {
   const { state, say } = useApp()
-  const { usedLabel, width } = quota(state.quota)
+  const { usedLabel, width, resetDate } = quota(state.quota)
   const disk = storage(state.quota)
 
   return (
@@ -67,8 +67,8 @@ export function PlanScreen() {
           </div>
 
           <p className="mt-[18px] border-t border-black/8 pt-4 text-[12.5px] leading-[1.6] text-muted">
-            Everything is free during the beta, watermark-free, up to 1080p. Limits reset on 1
-            October.
+            Everything is free during the beta, watermark-free, up to 1080p.
+            {resetDate && ` Limits reset on ${resetDate}.`}
           </p>
         </section>
 
