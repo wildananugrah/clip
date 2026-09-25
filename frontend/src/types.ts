@@ -29,12 +29,12 @@ export const APP_SCREENS = [
 ] as const satisfies readonly Screen[]
 
 /**
- * The daily job allowance, as GET /api/jobs/quota reports it. Mirrors QuotaDTO
+ * The monthly job allowance, as GET /api/jobs/quota reports it. Mirrors QuotaDTO
  * in shared/types.ts; the frontend declares its own view of the wire types
  * rather than importing across the workspace, as it does for JobSnapshot.
  *
- * Only the server can compute this: it is a rolling 24-hour window over the
- * user's jobs, so it survives reloads and covers other devices.
+ * Only the server can compute this: it is a count of the user's jobs since
+ * the 1st of the month (UTC), so it survives reloads and covers other devices.
  */
 export interface QuotaDTO {
   used: number
@@ -43,7 +43,7 @@ export interface QuotaDTO {
   /** Rendered bytes held, and the cap. Deleting a project lowers the first. */
   storageBytes: number
   storageLimitBytes: number
-  /** ISO time the oldest job leaves the window, or null when nothing is spent. */
+  /** ISO time the allowance resets (1st of next month, UTC). Null from an older server. */
   resetsAt: string | null
 }
 

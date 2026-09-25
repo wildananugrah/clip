@@ -79,7 +79,7 @@ describe('requireSession', () => {
 
   test('an expired session is refused even though the row exists', async () => {
     const expired: SessionLookup = async () => ({
-      user: { id: 'u1', email: 'a@test.invalid', name: null, pictureUrl: null, dailyJobLimit: null, storageLimitBytes: null },
+      user: { id: 'u1', email: 'a@test.invalid', name: null, pictureUrl: null, monthlyJobLimit: null, storageLimitBytes: null },
       expiresAt: new Date(Date.now() - 1000),
     })
     const res = await makeApp(expired).request('/api/projects', {
@@ -90,7 +90,7 @@ describe('requireSession', () => {
 
   test('a live session reaches the handler', async () => {
     const live: SessionLookup = async () => ({
-      user: { id: 'u1', email: 'a@test.invalid', name: null, pictureUrl: null, dailyJobLimit: null, storageLimitBytes: null },
+      user: { id: 'u1', email: 'a@test.invalid', name: null, pictureUrl: null, monthlyJobLimit: null, storageLimitBytes: null },
       expiresAt: new Date(Date.now() + 60_000),
     })
     const res = await makeApp(live).request('/api/projects', {
@@ -102,7 +102,7 @@ describe('requireSession', () => {
 
   test('the handler can read the signed-in user off the context', async () => {
     const live: SessionLookup = async () => ({
-      user: { id: 'u42', email: 'who@test.invalid', name: 'Who', pictureUrl: null, dailyJobLimit: null, storageLimitBytes: null },
+      user: { id: 'u42', email: 'who@test.invalid', name: 'Who', pictureUrl: null, monthlyJobLimit: null, storageLimitBytes: null },
       expiresAt: new Date(Date.now() + 60_000),
     })
     const app = new Hono()

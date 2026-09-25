@@ -75,7 +75,7 @@ export function Sidebar() {
           </div>
           <Meter value={allowance.width} className="mb-2 h-1 rounded-[2px]" />
           <p className="m-0 text-[11.5px] leading-[1.45] text-black/45">
-            {/* A rolling 24h window, not a calendar month. */}
+            {/* A calendar month, counted in UTC -- see quotaWindow on the server. */}
             {allowance.resetLabel || 'Clips stay for 30 days.'}
           </p>
         </div>

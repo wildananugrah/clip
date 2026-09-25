@@ -232,7 +232,7 @@ export const api = {
   activeJob: () => call<JobSnapshot | null>('/jobs/active'),
 
   /**
-   * The daily allowance. Refetched after anything that spends or frees a slot,
+   * The monthly allowance. Refetched after anything that spends or frees a slot,
    * because the count lives on the server -- see quota() in lib/derive.ts.
    */
   quota: () => call<QuotaDTO>('/jobs/quota'),

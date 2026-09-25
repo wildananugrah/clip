@@ -144,7 +144,7 @@ maybe('a completed job is not active', async () => {
   await db.update(jobs).set({ status: 'pending' }).where(eq(jobs.id, aliceJob))
 })
 
-maybe('the daily count is per user and respects the window', async () => {
+maybe('the monthly count is per user and respects the window', async () => {
   const hourAgo = new Date(Date.now() - 3_600_000)
   expect(await countJobsSince(alice, hourAgo)).toBe(1)
 
@@ -204,7 +204,7 @@ maybe('an empty window means nothing used and no reset time', async () => {
   expect(usage.oldestAt).toBeNull()
 })
 
-maybe('a cancelled job still counts against the daily allowance', async () => {
+maybe('a cancelled job still counts against the monthly allowance', async () => {
   // Deliberate: by the time you cancel, the download has usually already spent
   // the bandwidth and disk, so returning the slot would make the cap trivial to
   // sidestep by starting and cancelling repeatedly.

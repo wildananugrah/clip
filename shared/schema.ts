@@ -88,11 +88,14 @@ export const users = pgTable(
     name: text('name'),
     pictureUrl: text('picture_url'),
     /**
-     * Per-user override for the rolling 24h job allowance. Null means "follow
-     * QUOTA_JOBS_PER_DAY", so the global default stays the one place the normal
+     * Per-user override for the monthly job allowance. Null means "follow
+     * QUOTA_JOBS_PER_MONTH", so the global default stays the one place the normal
      * limit is configured and this column only ever names the exceptions.
+     *
+     * The column keeps its old name from when the allowance was per 24h: a
+     * rename would be a migration for no behavioural gain.
      */
-    dailyJobLimit: integer('daily_job_limit'),
+    monthlyJobLimit: integer('daily_job_limit'),
     /**
      * Per-user override for the rendered-bytes cap, null to follow
      * QUOTA_STORAGE_GB. bigint because 5 GB in bytes overflows int4.
@@ -290,7 +293,7 @@ export const jobs = pgTable(
     completedAt: timestamp('completed_at', { withTimezone: true }),
     /**
      * Set when the user deletes the project. The row outlives the delete on
-     * purpose: quotaUsage counts rows, so a hard delete would hand back a daily
+     * purpose: quotaUsage counts rows, so a hard delete would hand back a monthly
      * slot and make the cap resettable by clearing your history. The clips and
      * their S3 objects are really gone by the time this is stamped.
      */

@@ -251,15 +251,15 @@ recommendationRoutes.post('/:id/clips', recommendationsGate, async (c) => {
   }
 
   /**
-   * Creating clips adds renders, and nothing else bounds how many: the daily
+   * Creating clips adds renders, and nothing else bounds how many: the monthly
    * quota counts jobs, and this creates clips inside one that is already paid
    * for. The storage ceiling is the honest limit to apply. Same reasoning, and
    * the same call, as POST /clips/:id/copy.
    */
   const refusal = quotaVerdict({
     activeCount: 0,
-    dailyCount: 0,
-    dailyLimit: Number.POSITIVE_INFINITY,
+    monthlyCount: 0,
+    monthlyLimit: Number.POSITIVE_INFINITY,
     storageBytes: await storageUsage(user.id),
     storageLimitBytes: user.storageLimitBytes ?? env.QUOTA_STORAGE_GB * 1024 ** 3,
   })

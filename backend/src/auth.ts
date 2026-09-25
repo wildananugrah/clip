@@ -24,8 +24,8 @@ export interface SessionUser {
   email: string
   name: string | null
   pictureUrl: string | null
-  /** Per-user job allowance, or null to follow QUOTA_JOBS_PER_DAY. */
-  dailyJobLimit: number | null
+  /** Per-user job allowance, or null to follow QUOTA_JOBS_PER_MONTH. */
+  monthlyJobLimit: number | null
   /** Per-user rendered-bytes cap, or null to follow QUOTA_STORAGE_GB. */
   storageLimitBytes: number | null
 }

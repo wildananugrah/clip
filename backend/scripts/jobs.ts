@@ -15,7 +15,7 @@
  *
  * The same code paths as the Cancel button and the project Delete, via
  * cancelJob and softDeleteJob -- so a deleted job still counts toward its
- * owner's daily quota, exactly as when they delete it themselves.
+ * owner's monthly quota, exactly as when they delete it themselves.
  *
  * A cancel is only as good as the worker holding the job. One running code
  * older than the cancel guard in worker/src/progress.ts can write the job back

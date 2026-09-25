@@ -212,7 +212,7 @@ export function LandingScreen() {
               Your next week of posts is already recorded.
             </h2>
             <p className="m-0 mb-7 text-[15px] text-white/65">
-              Free during the beta, with a daily limit per account.
+              Free during the beta, with a monthly limit per account.
             </p>
             <LoginLink className={cn(primary, 'h-12 text-[15px]')}>Get started free</LoginLink>
           </div>

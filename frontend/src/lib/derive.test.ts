@@ -104,13 +104,13 @@ describe('quota', () => {
   test('it counts down from the limit the server reports', () => {
     const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: at(3_600_000) })
     expect(q.known).toBe(true)
-    expect(q.label).toBe('2 of 3 videos left today')
+    expect(q.label).toBe('2 of 3 videos left this month')
   })
 
   test('it does not use a hardcoded allowance', () => {
-    // QUOTA_JOBS_PER_DAY is configurable; 3 must not be baked in.
+    // QUOTA_JOBS_PER_MONTH is configurable; 3 must not be baked in.
     const q = quota({ used: 2, limit: 10, remaining: 8, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: at(3_600_000) })
-    expect(q.label).toBe('8 of 10 videos left today')
+    expect(q.label).toBe('8 of 10 videos left this month')
   })
 
   test('the used label reads as a fraction for the meter', () => {
@@ -128,27 +128,26 @@ describe('quota', () => {
 
   test('an exhausted allowance says so plainly', () => {
     const q = quota({ used: 3, limit: 3, remaining: 0, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: at(3_600_000) })
-    expect(q.label).toBe('No videos left today')
+    expect(q.label).toBe('No videos left this month')
     expect(q.exhausted).toBe(true)
   })
 
-  test('nothing spent means nothing to wait for', () => {
-    expect(quota({ used: 0, limit: 3, remaining: 3, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: null }).resetLabel).toBe('')
+  test('no reset time means nothing to say, rather than a made-up date', () => {
+    const q = quota({ used: 0, limit: 3, remaining: 3, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: null })
+    expect(q.resetLabel).toBe('')
+    expect(q.resetDate).toBe('')
   })
 
-  test('it explains the rolling window in hours, not a calendar date', () => {
-    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: at(3 * 3_600_000) })
-    expect(q.resetLabel).toBe('A slot frees up in 3h')
+  test('it names the day the month resets', () => {
+    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: '2026-10-01T00:00:00.000Z' })
+    expect(q.resetDate).toBe('1 October')
+    expect(q.resetLabel).toBe('Resets on 1 October')
   })
 
-  test('under an hour is reported in minutes', () => {
-    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: at(40 * 60_000) })
-    expect(q.resetLabel).toBe('A slot frees up in 40 min')
-  })
-
-  test('a reset time already past reads as imminent, not negative', () => {
-    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: at(-60_000) })
-    expect(q.resetLabel).toBe('A slot frees up any moment')
+  test('the reset day is read in UTC, so it is the 1st in every time zone', () => {
+    // In a zone west of UTC this instant is still 31 December locally.
+    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: '2027-01-01T00:00:00.000Z' })
+    expect(q.resetDate).toBe('1 January')
   })
 })
 

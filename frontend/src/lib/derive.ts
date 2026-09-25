@@ -9,14 +9,14 @@ import { isTerminal } from '../../../shared/types'
 import type { Clip, JobStatus, QuotaDTO, Ratio, Screen } from '../types'
 
 /**
- * The daily allowance, from the server's count.
+ * The monthly allowance, from the server's count.
  *
  * This used to take a local `videosUsed` counter that the app incremented itself.
  * That counter started at zero on every reload, was never persisted and knew
  * nothing about jobs created on another device -- so after generating one video
- * the sidebar still said "3 of 3 free videos left". The allowance is a rolling
- * 24-hour window enforced on the server (quota.ts), and only the server can
- * count it.
+ * the sidebar still said "3 of 3 free videos left". The allowance is a calendar
+ * month (UTC) enforced on the server (quota.ts), and only the server can count
+ * it.
  *
  * `known: false` while the fetch is in flight, so the UI can stay quiet rather
  * than show a number that is probably wrong.
@@ -31,6 +31,7 @@ export function quota(q: QuotaDTO | null) {
       usedLabel: '',
       width: '0%',
       resetLabel: '',
+      resetDate: '',
       exhausted: false,
       remaining: 0,
     }
@@ -41,12 +42,16 @@ export function quota(q: QuotaDTO | null) {
 
   return {
     known: true,
-    label: remaining === 0 ? 'No videos left today' : `${remaining} of ${q.limit} videos left today`,
+    label:
+      remaining === 0
+        ? 'No videos left this month'
+        : `${remaining} of ${q.limit} videos left this month`,
     usedLabel: `${q.used} of ${q.limit}`,
     // Clamped: a limit lowered after jobs were created would otherwise push the
     // meter past its track.
     width: `${q.limit === 0 ? 100 : Math.round((spent / q.limit) * 100)}%`,
-    resetLabel: resetLabel(q.resetsAt),
+    resetLabel: resetDate(q.resetsAt) ? `Resets on ${resetDate(q.resetsAt)}` : '',
+    resetDate: resetDate(q.resetsAt),
     exhausted: remaining === 0,
     remaining,
   }
@@ -55,8 +60,8 @@ export function quota(q: QuotaDTO | null) {
 /**
  * Rendered storage held, from the server's sum of `renders.size_bytes`.
  *
- * Separate from `quota` above because the two behave differently: the daily
- * count only falls with time, while this one falls the moment a project is
+ * Separate from `quota` above because the two behave differently: the monthly
+ * count only falls when the month turns, while this one falls the moment a project is
  * deleted. Same `known: false` treatment while the fetch is in flight.
  */
 export function storage(q: QuotaDTO | null) {
@@ -77,22 +82,17 @@ export function storage(q: QuotaDTO | null) {
 }
 
 /**
- * When the next slot frees up, in relative terms.
+ * The day the allowance resets, e.g. "1 October".
  *
- * Deliberately not a date: the window rolls continuously, so "resets on the 1st"
- * (which this app used to claim) is simply untrue.
+ * Formatted in UTC because that is the zone the server's month is counted in:
+ * midnight on the 1st UTC is still 30 September west of Greenwich, and saying
+ * so would contradict the "1st of the month" rule everywhere else.
  */
-function resetLabel(resetsAt: string | null): string {
+function resetDate(resetsAt: string | null): string {
   if (!resetsAt) return ''
-
-  const ms = Date.parse(resetsAt) - Date.now()
+  const ms = Date.parse(resetsAt)
   if (Number.isNaN(ms)) return ''
-  // Already elapsed, or clock skew between server and browser.
-  if (ms <= 0) return 'A slot frees up any moment'
-
-  const minutes = Math.round(ms / 60_000)
-  if (minutes < 60) return `A slot frees up in ${minutes} min`
-  return `A slot frees up in ${Math.round(minutes / 60)}h`
+  return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })
 }
 
 export function formatsLabel(formats: Record<Ratio, boolean>): string {
