@@ -82,6 +82,29 @@ export function storage(q: QuotaDTO | null) {
 }
 
 /**
+ * Projects held against the cap, from the server's count.
+ *
+ * Its own helper for the same reason as `storage`: deleting a project frees a
+ * slot at once, while the monthly count waits for the 1st.
+ */
+export function projectSlots(q: QuotaDTO | null) {
+  if (!q) {
+    return { known: false, label: '', width: '0%', full: false }
+  }
+
+  const { projectCount: held, projectLimit: limit } = q
+  // A cap of zero is "no room", not "unlimited" -- and not a division by zero.
+  const pct = limit === 0 ? 100 : Math.min(100, Math.round((held / limit) * 100))
+
+  return {
+    known: true,
+    label: `${held} of ${limit}`,
+    width: `${pct}%`,
+    full: held >= limit,
+  }
+}
+
+/**
  * The day the allowance resets, e.g. "1 October".
  *
  * Formatted in UTC because that is the zone the server's month is counted in:

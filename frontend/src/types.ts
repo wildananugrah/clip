@@ -43,6 +43,9 @@ export interface QuotaDTO {
   /** Rendered bytes held, and the cap. Deleting a project lowers the first. */
   storageBytes: number
   storageLimitBytes: number
+  /** Projects held, and the cap. Deleting a project lowers the first. */
+  projectCount: number
+  projectLimit: number
   /** ISO time the allowance resets (1st of next month, UTC). Null from an older server. */
   resetsAt: string | null
 }

@@ -101,6 +101,12 @@ export const users = pgTable(
      * QUOTA_STORAGE_GB. bigint because 5 GB in bytes overflows int4.
      */
     storageLimitBytes: bigint('storage_limit_bytes', { mode: 'number' }),
+    /**
+     * Per-user override for how many projects can be held at once, null to
+     * follow QUOTA_PROJECTS. Unlike the monthly count, deleting a project gives
+     * the slot back -- see countProjects in backend/src/ownership.ts.
+     */
+    projectLimit: integer('project_limit'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
   },

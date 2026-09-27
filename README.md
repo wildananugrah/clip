@@ -157,8 +157,14 @@ expensive stage in the pipeline, shared by everyone who clips the same link.
 Signup is open to any Google account, so quota is load-bearing rather than
 optional: one active job per user, and `QUOTA_JOBS_PER_MONTH` (default 20) per
 calendar month, counted in UTC and reset on the 1st. Worker concurrency is 1, so
-without it one account can occupy the box all day. Refusals are 409 for the
-running-job conflict and 429 for the monthly cap.
+without it one account can occupy the box all day. On top of that,
+`QUOTA_PROJECTS` (default 20) caps the projects a user holds at once; deleting a
+project (its clips and their files) frees the slot immediately. Refusals are 409
+for the running-job conflict and the project cap, and 429 for the monthly cap.
+
+Per-user overrides, from `backend/`: `bun run quota <email> --limit N` for the
+monthly allowance and `bun run projects <email> --limit N` for the project cap
+(`--limit default` puts either back on the global value).
 
 `API_TOKEN` survives only as the HMAC key for media URLs. It used to gate `/api`,
 but the SPA inlined it at build time and published it in the JS bundle, which is

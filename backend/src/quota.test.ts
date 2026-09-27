@@ -92,6 +92,52 @@ describe('quotaVerdict storage', () => {
   })
 })
 
+describe('quotaVerdict projects', () => {
+  const GB = 1024 ** 3
+  const ok = { activeCount: 0, monthlyCount: 0, monthlyLimit: 3 }
+
+  test('under the project cap is allowed', () => {
+    expect(quotaVerdict({ ...ok, projectCount: 19, projectLimit: 20 })).toBeNull()
+  })
+
+  test('at the cap is refused with advice to delete, since that frees the slot', () => {
+    const v = quotaVerdict({ ...ok, projectCount: 20, projectLimit: 20 })
+    expect(v?.status).toBe(409)
+    expect(v?.message).toMatch(/20 projects/)
+    expect(v?.message).toMatch(/delete/i)
+  })
+
+  test('a cap of zero refuses, rather than being read as unlimited', () => {
+    expect(quotaVerdict({ ...ok, projectCount: 0, projectLimit: 0 })?.status).toBe(409)
+  })
+
+  test('a running job is still reported first', () => {
+    const v = quotaVerdict({ ...ok, activeCount: 1, projectCount: 20, projectLimit: 20 })
+    expect(v?.message).toMatch(/already have/i)
+  })
+
+  test('full storage is reported before the project cap', () => {
+    const v = quotaVerdict({
+      ...ok,
+      projectCount: 20,
+      projectLimit: 20,
+      storageBytes: 9 * GB,
+      storageLimitBytes: 5 * GB,
+    })
+    expect(v?.status).toBe(507)
+  })
+
+  test('the project cap is reported before the monthly cap: deleting beats waiting', () => {
+    const v = quotaVerdict({ ...ok, monthlyCount: 3, projectCount: 20, projectLimit: 20 })
+    expect(v?.status).toBe(409)
+  })
+
+  test('omitting the project counts leaves the other rules untouched', () => {
+    // Re-cuts and recommendations add clips to an existing project, not a new one.
+    expect(quotaVerdict(ok)).toBeNull()
+  })
+})
+
 describe('quotaWindow', () => {
   test('runs from the 1st of this month to the 1st of the next, in UTC', () => {
     const w = quotaWindow(new Date('2026-09-25T01:59:00Z'))

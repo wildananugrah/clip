@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'bun:test'
-import { clampClipCount, etaForCount, jobIndicator, quota, storage } from './derive'
+import { clampClipCount, etaForCount, jobIndicator, projectSlots, quota, storage } from './derive'
 
 /**
  * The one place that decides whether "a video is being processed" is worth
@@ -92,61 +92,61 @@ describe('quota', () => {
   test('the shape is the same whether or not the server has answered', () => {
     // Callers destructure this; a missing field is a type error at the call site.
     expect(Object.keys(quota(null)).sort()).toEqual(
-      Object.keys(quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: null })).sort(),
+      Object.keys(quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: null })).sort(),
     )
   })
 
   test('remaining is exposed for callers that need the number itself', () => {
-    expect(quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: null }).remaining).toBe(2)
+    expect(quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: null }).remaining).toBe(2)
     expect(quota(null).remaining).toBe(0)
   })
 
   test('it counts down from the limit the server reports', () => {
-    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: at(3_600_000) })
+    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: at(3_600_000) })
     expect(q.known).toBe(true)
     expect(q.label).toBe('2 of 3 videos left this month')
   })
 
   test('it does not use a hardcoded allowance', () => {
     // QUOTA_JOBS_PER_MONTH is configurable; 3 must not be baked in.
-    const q = quota({ used: 2, limit: 10, remaining: 8, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: at(3_600_000) })
+    const q = quota({ used: 2, limit: 10, remaining: 8, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: at(3_600_000) })
     expect(q.label).toBe('8 of 10 videos left this month')
   })
 
   test('the used label reads as a fraction for the meter', () => {
-    expect(quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: null }).usedLabel).toBe('1 of 3')
+    expect(quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: null }).usedLabel).toBe('1 of 3')
   })
 
   test('the bar width tracks what has been spent', () => {
-    expect(quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: null }).width).toBe('33%')
-    expect(quota({ used: 3, limit: 3, remaining: 0, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: null }).width).toBe('100%')
+    expect(quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: null }).width).toBe('33%')
+    expect(quota({ used: 3, limit: 3, remaining: 0, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: null }).width).toBe('100%')
   })
 
   test('being over the limit cannot overflow the bar', () => {
-    expect(quota({ used: 5, limit: 3, remaining: 0, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: null }).width).toBe('100%')
+    expect(quota({ used: 5, limit: 3, remaining: 0, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: null }).width).toBe('100%')
   })
 
   test('an exhausted allowance says so plainly', () => {
-    const q = quota({ used: 3, limit: 3, remaining: 0, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: at(3_600_000) })
+    const q = quota({ used: 3, limit: 3, remaining: 0, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: at(3_600_000) })
     expect(q.label).toBe('No videos left this month')
     expect(q.exhausted).toBe(true)
   })
 
   test('no reset time means nothing to say, rather than a made-up date', () => {
-    const q = quota({ used: 0, limit: 3, remaining: 3, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: null })
+    const q = quota({ used: 0, limit: 3, remaining: 3, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: null })
     expect(q.resetLabel).toBe('')
     expect(q.resetDate).toBe('')
   })
 
   test('it names the day the month resets', () => {
-    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: '2026-10-01T00:00:00.000Z' })
+    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: '2026-10-01T00:00:00.000Z' })
     expect(q.resetDate).toBe('1 October')
     expect(q.resetLabel).toBe('Resets on 1 October')
   })
 
   test('the reset day is read in UTC, so it is the 1st in every time zone', () => {
     // In a zone west of UTC this instant is still 31 December locally.
-    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, resetsAt: '2027-01-01T00:00:00.000Z' })
+    const q = quota({ used: 1, limit: 3, remaining: 2, storageBytes: 0, storageLimitBytes: 5 * 1024 ** 3, projectCount: 0, projectLimit: 20, resetsAt: '2027-01-01T00:00:00.000Z' })
     expect(q.resetDate).toBe('1 January')
   })
 })
@@ -243,6 +243,8 @@ describe('storage', () => {
     remaining: 3,
     storageBytes,
     storageLimitBytes,
+    projectCount: 0,
+    projectLimit: 20,
     resetsAt: null,
   })
 
@@ -276,5 +278,51 @@ describe('storage', () => {
     const s = storage(q(9 * GB, 5 * GB))
     expect(s.width).toBe('100%')
     expect(s.full).toBe(true)
+  })
+})
+
+/**
+ * Projects held against the cap. Falls the moment one is deleted, so it is
+ * the one limit a user can clear themselves.
+ */
+describe('projectSlots', () => {
+  const q = (projectCount: number, projectLimit: number) => ({
+    used: 0,
+    limit: 3,
+    remaining: 3,
+    storageBytes: 0,
+    storageLimitBytes: 0,
+    projectCount,
+    projectLimit,
+    resetsAt: null,
+  })
+
+  test('before the server has answered, it does not invent a number', () => {
+    expect(projectSlots(null).known).toBe(false)
+  })
+
+  test('the shape is the same whether or not the server has answered', () => {
+    expect(Object.keys(projectSlots(null)).sort()).toEqual(Object.keys(projectSlots(q(2, 20))).sort())
+  })
+
+  test('it reports held against the cap', () => {
+    const p = projectSlots(q(2, 20))
+    expect(p.label).toBe('2 of 20')
+    expect(p.width).toBe('10%')
+    expect(p.full).toBe(false)
+  })
+
+  test('at the cap it is full', () => {
+    expect(projectSlots(q(20, 20)).full).toBe(true)
+  })
+
+  test('a cap lowered below what is held clamps the bar', () => {
+    const p = projectSlots(q(25, 20))
+    expect(p.width).toBe('100%')
+    expect(p.full).toBe(true)
+  })
+
+  test('a cap of zero is full, not a division by zero', () => {
+    expect(projectSlots(q(0, 0))).toMatchObject({ width: '100%', full: true })
   })
 })
