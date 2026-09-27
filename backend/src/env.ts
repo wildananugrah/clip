@@ -28,6 +28,8 @@ const schema = z.object({
   QUOTA_JOBS_PER_MONTH: z.coerce.number().default(20),
   /** Per-user rendered GB. In GB, not bytes, because a human sets it. */
   QUOTA_STORAGE_GB: z.coerce.number().default(5),
+  /** Per-user projects held at once. Deleting one frees its slot. */
+  QUOTA_PROJECTS: z.coerce.number().default(20),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   /**
    * The clip editor: trimming, the timeline, manual clipping, save-as-new-clip.

@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
-import { eq, and, desc, exists, inArray, isNull, or, not, sql } from 'drizzle-orm'
+import { eq, and, desc, inArray, not, sql } from 'drizzle-orm'
 import { db, pool, jobs, videos, clips, renders } from '../db/index.ts'
 import { editorGate } from '../editorGate.ts'
 import {
@@ -10,6 +10,8 @@ import {
   quotaUsage,
   countActiveJobs,
   countJobsSince,
+  countProjects,
+  projectsOf,
   storageUsage,
 } from '../ownership.ts'
 import { quotaVerdict, quotaWindow } from '../quota.ts'
@@ -23,7 +25,7 @@ import {
   PROCESS_QUEUE,
 } from '../queue.ts'
 import { subscribe, ensureListening } from '../events.ts'
-import { isTerminal, MAX_PROMPT_CHARS, RATIOS, TERMINAL_STATUSES } from '../../../shared/types.ts'
+import { isTerminal, MAX_PROMPT_CHARS, RATIOS } from '../../../shared/types.ts'
 import type { ProjectDTO, QuotaDTO, Ratio } from '../../../shared/types.ts'
 import { CANCEL_CHANNEL, NOTIFY_CHANNEL, encodeProgress } from '../../../shared/progress.ts'
 import { storage } from '../s3.ts'
@@ -70,6 +72,9 @@ jobsRoutes.post('/', async (c) => {
     monthlyLimit: user.monthlyJobLimit ?? env.QUOTA_JOBS_PER_MONTH,
     storageBytes: await storageUsage(user.id),
     storageLimitBytes: user.storageLimitBytes ?? env.QUOTA_STORAGE_GB * 1024 ** 3,
+    // Only here: this is the one route that makes a new project.
+    projectCount: await countProjects(user.id),
+    projectLimit: user.projectLimit ?? env.QUOTA_PROJECTS,
   })
   if (refusal) return c.json({ error: refusal.message }, refusal.status)
 
@@ -135,6 +140,8 @@ jobsRoutes.get('/quota', async (c) => {
     remaining: Math.max(0, limit - used),
     storageBytes: await storageUsage(user.id),
     storageLimitBytes: user.storageLimitBytes ?? env.QUOTA_STORAGE_GB * 1024 ** 3,
+    projectCount: await countProjects(user.id),
+    projectLimit: user.projectLimit ?? env.QUOTA_PROJECTS,
     // The whole allowance comes back at once, on the 1st of next month.
     resetsAt: window.resetsAt.toISOString(),
   }
@@ -344,21 +351,8 @@ export async function listProjects(userId: string): Promise<ProjectDTO[]> {
     .select()
     .from(jobs)
     .innerJoin(videos, eq(jobs.videoId, videos.id))
-    .where(
-      and(
-        eq(jobs.userId, userId),
-        isNull(jobs.deletedAt),
-        /**
-         * Finished work needs clips to be worth opening; running work does not
-         * have any yet. Requiring clips of everything is what kept a job in
-         * flight off this screen entirely.
-         */
-        or(
-          not(inArray(jobs.status, [...TERMINAL_STATUSES])),
-          exists(db.select({ one: clips.id }).from(clips).where(eq(clips.jobId, jobs.id))),
-        ),
-      ),
-    )
+    // Shared with countProjects, so the cap counts what this list shows.
+    .where(projectsOf(userId))
     .orderBy(desc(recency))
     .limit(100)
 

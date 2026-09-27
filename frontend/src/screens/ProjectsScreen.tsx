@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '../components/Button'
 import { Meter } from '../components/Meter'
 import { ago } from '../lib/format'
-import { jobIndicator } from '../lib/derive'
+import { jobIndicator, projectSlots } from '../lib/derive'
 import { isTerminal } from '../../../shared/types'
 import { LazyImage } from '../components/LazyImage'
 import type { Project } from '../types'
@@ -107,6 +107,7 @@ export function ProjectsScreen() {
   const { state, goNew, openProject, cancelJob } = useApp()
   const { projects } = state
   const totalClips = projects.reduce((n, p) => n + p.clipCount, 0)
+  const held = projectSlots(state.quota)
 
   return (
     <div className="min-h-0 flex-1 overflow-auto px-5 py-[26px] sm:px-7">
@@ -116,10 +117,20 @@ export function ProjectsScreen() {
         </h1>
         {projects.length > 0 && (
           <span className="text-[12.5px] text-black/42">
-            {projects.length} {projects.length === 1 ? 'video' : 'videos'} · {totalClips} clips
+            {/* The server's count once it has answered: it is the one the cap is checked against. */}
+            {held.known
+              ? `${held.label} projects`
+              : `${projects.length} ${projects.length === 1 ? 'video' : 'videos'}`}{' '}
+            · {totalClips} clips
           </span>
         )}
       </div>
+
+      {held.full && (
+        <p className="m-0 mb-4 max-w-[860px] text-[12.5px] text-muted">
+          You have reached your project limit. Delete a project to start a new one.
+        </p>
+      )}
 
       {projects.length === 0 ? (
         <div className="flex max-w-[860px] flex-col items-start gap-3.5 rounded-[18px] border-[1.5px] border-dashed border-[rgba(23,20,18,.22)] bg-white p-7">

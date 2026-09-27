@@ -69,6 +69,7 @@ export async function lookupSession(
       pictureUrl: users.pictureUrl,
       monthlyJobLimit: users.monthlyJobLimit,
       storageLimitBytes: users.storageLimitBytes,
+      projectLimit: users.projectLimit,
       expiresAt: sessions.expiresAt,
     })
     .from(sessions)
@@ -85,6 +86,7 @@ export async function lookupSession(
       pictureUrl: row.pictureUrl,
       monthlyJobLimit: row.monthlyJobLimit,
       storageLimitBytes: row.storageLimitBytes,
+      projectLimit: row.projectLimit,
     },
     expiresAt: row.expiresAt,
   }

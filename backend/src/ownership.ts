@@ -8,9 +8,9 @@
  * through here makes the owner check impossible to omit rather than merely
  * documented.
  */
-import { and, desc, eq, gte, inArray, isNull, count, sum } from 'drizzle-orm'
+import { and, desc, eq, exists, gte, inArray, isNull, not, or, count, sum } from 'drizzle-orm'
 import { db, jobs, clips, renders } from './db/index.ts'
-import { isTerminal } from '../../shared/types.ts'
+import { isTerminal, TERMINAL_STATUSES } from '../../shared/types.ts'
 import { jobStatus } from '../../shared/schema.ts'
 import type { Job, Clip } from '../../shared/schema.ts'
 
@@ -132,5 +132,39 @@ export async function countJobsSince(userId: string, since: Date): Promise<numbe
     .select({ n: count() })
     .from(jobs)
     .where(and(eq(jobs.userId, userId), gte(jobs.createdAt, since)))
+  return Number(row?.n ?? 0)
+}
+
+/**
+ * The jobs that show up as this user's projects: undeleted, and either still
+ * running or holding clips.
+ *
+ * Shared by the project list and the project count so the cap counts exactly
+ * the rows the user can see -- and therefore delete. A failed job with no clips
+ * is hidden from the list, so counting it would take a slot nobody can free.
+ */
+export function projectsOf(userId: string) {
+  return and(
+    eq(jobs.userId, userId),
+    isNull(jobs.deletedAt),
+    /**
+     * Finished work needs clips to be worth opening; running work does not
+     * have any yet. Requiring clips of everything is what kept a job in
+     * flight off the projects screen entirely.
+     */
+    or(
+      not(inArray(jobs.status, [...TERMINAL_STATUSES])),
+      exists(db.select({ one: clips.id }).from(clips).where(eq(clips.jobId, jobs.id))),
+    ),
+  )
+}
+
+/**
+ * Projects held, for the cap in quota.ts. Unlike the monthly count this one
+ * falls when a project is deleted: the cap is on what you keep, not on what you
+ * have made.
+ */
+export async function countProjects(userId: string): Promise<number> {
+  const [row] = await db.select({ n: count() }).from(jobs).where(projectsOf(userId))
   return Number(row?.n ?? 0)
 }

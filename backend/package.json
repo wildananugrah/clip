@@ -8,6 +8,7 @@
     "start": "bun --env-file=../.env src/index.ts",
     "test": "bun test",
     "quota": "bun --env-file=../.env scripts/quota.ts",
+    "projects": "bun --env-file=../.env scripts/projects.ts",
     "users": "bun --env-file=../.env scripts/users.ts",
     "storage": "bun --env-file=../.env scripts/storage.ts",
     "proxies": "bun --env-file=../.env scripts/proxies.ts",

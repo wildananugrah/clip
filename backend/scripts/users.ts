@@ -10,7 +10,8 @@
  * stub, so this is the only way to remove somebody who asks -- which is a thing
  * they are entitled to ask for.
  *
- * Quotas live in the sibling script: `bun run quota <email>`.
+ * Quotas live in the sibling scripts: `bun run quota <email>` and
+ * `bun run projects <email>`.
  */
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { users, sessions, jobs, clips, renders } from '../../shared/schema.ts'
@@ -168,6 +169,7 @@ async function main() {
   console.log(`  storage      ${fmtBytes(Number(t?.bytes ?? 0))}`)
   console.log(`  sessions     ${live.length} live`)
   console.log(`  quotas       bun run quota ${user.email}`)
+  console.log(`               bun run projects ${user.email}`)
 }
 
 if (import.meta.main) {

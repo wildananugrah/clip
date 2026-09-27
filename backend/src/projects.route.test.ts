@@ -31,6 +31,7 @@ beforeAll(async () => {
       pictureUrl: null,
       monthlyJobLimit: null,
       storageLimitBytes: null,
+      projectLimit: null,
     })
     await next()
   })

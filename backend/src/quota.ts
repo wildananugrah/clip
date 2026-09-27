@@ -20,6 +20,13 @@ export interface QuotaCounts {
    */
   storageBytes?: number
   storageLimitBytes?: number
+  /**
+   * Projects this user is holding, and the cap. Optional for the same reason:
+   * only creating a job makes a new project, so re-cuts and recommendations
+   * leave these out.
+   */
+  projectCount?: number
+  projectLimit?: number
 }
 
 export interface QuotaRefusal {
@@ -33,6 +40,8 @@ export function quotaVerdict({
   monthlyLimit,
   storageBytes,
   storageLimitBytes,
+  projectCount,
+  projectLimit,
 }: QuotaCounts): QuotaRefusal | null {
   // Reported first because it is the one the user can act on: wait, or cancel.
   if (activeCount >= 1) {
@@ -54,6 +63,15 @@ export function quotaVerdict({
     return {
       status: 507,
       message: `Storage full (${fmtBytes(storageBytes)} of ${fmtBytes(storageLimitBytes)}). Delete a project to free space.`,
+    }
+  }
+
+  // Also ahead of the monthly cap, and for the same reason: deleting a project
+  // hands this slot back at once, whereas the monthly one waits for the 1st.
+  if (projectCount !== undefined && projectLimit !== undefined && projectCount >= projectLimit) {
+    return {
+      status: 409,
+      message: `Project limit reached (${projectLimit} projects). Delete a project to start a new one.`,
     }
   }
 

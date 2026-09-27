@@ -896,12 +896,14 @@ export function useSnipline() {
             : {}),
         }))
         say('Project deleted.')
+        // Frees a project slot and its storage; ask the server for the new counts.
+        void loadQuota()
       } catch (e) {
         patch({ pending: null })
         say(e instanceof ApiError ? e.message : 'Could not delete that project.')
       }
     },
-    [patch, say],
+    [patch, say, loadQuota],
   )
 
   // ---- source picking -----------------------------------------------------

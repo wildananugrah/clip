@@ -28,6 +28,8 @@ export interface SessionUser {
   monthlyJobLimit: number | null
   /** Per-user rendered-bytes cap, or null to follow QUOTA_STORAGE_GB. */
   storageLimitBytes: number | null
+  /** Per-user cap on projects held at once, or null to follow QUOTA_PROJECTS. */
+  projectLimit: number | null
 }
 
 /** Resolves a session id (the token's hash) to its user, or null. */

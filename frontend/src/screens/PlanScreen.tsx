@@ -1,6 +1,6 @@
 import { Button } from '../components/Button'
 import { Meter } from '../components/Meter'
-import { quota, storage } from '../lib/derive'
+import { projectSlots, quota, storage } from '../lib/derive'
 import { useApp } from '../state/AppContext'
 
 function QuotaRow({
@@ -29,6 +29,7 @@ export function PlanScreen() {
   const { state, say } = useApp()
   const { usedLabel, width, resetDate } = quota(state.quota)
   const disk = storage(state.quota)
+  const held = projectSlots(state.quota)
 
   return (
     <div className="min-h-0 flex-1 overflow-auto px-5 py-[26px] sm:px-7">
@@ -63,6 +64,12 @@ export function PlanScreen() {
               value={disk.known ? disk.label : '—'}
               width={disk.width}
               tone={disk.full ? 'ink' : undefined}
+            />
+            <QuotaRow
+              label="Projects"
+              value={held.known ? held.label : '—'}
+              width={held.width}
+              tone={held.full ? 'ink' : undefined}
             />
           </div>
 
