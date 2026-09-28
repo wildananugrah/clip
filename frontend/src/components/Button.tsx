@@ -27,8 +27,8 @@ const base =
 
 const variants: Record<Variant, string> = {
   primary: 'border-ink shadow-stamp font-semibold',
-  outline: 'border-ink bg-white font-medium text-ink-soft hover:bg-cream',
-  quiet: 'border-[rgba(23,20,18,.5)] bg-white font-medium text-ink-soft hover:bg-cream',
+  outline: 'border-ink bg-paper font-medium text-ink-soft hover:bg-cream',
+  quiet: 'border-ink/50 bg-paper font-medium text-ink-soft hover:bg-cream',
   onDark:
     'border-white/35 bg-transparent font-medium text-white/85 hover:border-white/60 hover:text-white',
 }
@@ -56,8 +56,8 @@ export function Button({
         variants[variant],
         variant === 'primary' &&
           (armed
-            ? 'bg-violet text-white hover:bg-violet-deep'
-            : 'bg-sand-deep text-[rgba(23,20,18,.9)]'),
+            ? 'bg-violet text-on-violet hover:bg-violet-deep'
+            : 'bg-sand-deep text-ink/90'),
         // Only dim for a plain disabled state: a loading button already reads as
         // busy from the spinner, and fading it too makes the label hard to read.
         disabled && !loading && 'opacity-55',

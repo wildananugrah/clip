@@ -43,10 +43,10 @@ export function JobIndicator({
         className={cn(
           'flex flex-none items-center gap-3 border-b px-4 py-2.5 md:px-[26px]',
           tone === 'failed'
-            ? 'border-[#F0D2D2] bg-[#FDECEC]'
+            ? 'border-danger-line bg-danger-soft'
             : tone === 'done'
               ? 'border-lime/50 bg-lime/25'
-              : 'border-black/8 bg-white',
+              : 'border-ink/8 bg-paper',
         )}
       >
         {tone === 'active' && <Spinner />}
@@ -54,13 +54,13 @@ export function JobIndicator({
         {showBar && (
           <>
             <Meter value={`${percent}%`} tone="violet" className="h-1 w-[90px] flex-none" />
-            <span className="flex-none text-[11.5px] tabular-nums text-black/45">{percent}%</span>
+            <span className="flex-none text-[11.5px] tabular-nums text-ink/45">{percent}%</span>
           </>
         )}
         <button
           type="button"
           onClick={onOpen}
-          className="ml-auto flex h-10 flex-none cursor-pointer items-center rounded-full border-[1.5px] border-ink bg-white px-3.5 text-[12px] font-medium text-ink hover:bg-cream md:h-auto md:px-3 md:py-1"
+          className="ml-auto flex h-10 flex-none cursor-pointer items-center rounded-full border-[1.5px] border-ink bg-paper px-3.5 text-[12px] font-medium text-ink hover:bg-cream md:h-auto md:px-3 md:py-1"
         >
           {tone === 'done' ? 'See clips' : 'View'}
         </button>
@@ -94,7 +94,7 @@ export function JobIndicator({
                     e.stopPropagation()
                     onCancel()
                   }}
-                  className="hidden group-hover:flex size-3.5 -m-0.5 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 cursor-pointer"
+                  className="hidden group-hover:flex size-3.5 -m-0.5 items-center justify-center rounded-full bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900 cursor-pointer"
                 >
                   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" className="size-2">
                     <path d="M4 4l8 8M12 4l-8 8" />
@@ -109,13 +109,13 @@ export function JobIndicator({
         <span
           className={cn(
             'min-w-0 truncate text-[13px] font-medium',
-            tone === 'failed' ? 'text-[#8C2F2F]' : 'text-ink',
+            tone === 'failed' ? 'text-danger-ink' : 'text-ink',
           )}
         >
           {cancelling ? 'Cancelling…' : label}
         </span>
         {showBar && (
-          <span className="ml-auto flex-none text-[11px] tabular-nums text-black/45">{percent}%</span>
+          <span className="ml-auto flex-none text-[11px] tabular-nums text-ink/45">{percent}%</span>
         )}
       </span>
       {showBar && <Meter value={`${percent}%`} tone="violet" className="h-1" />}

@@ -39,7 +39,7 @@ export function EditorUnavailable({
           </>
         )}
       </p>
-      <p className="m-0 max-w-[340px] text-[11.5px] text-black/40">
+      <p className="m-0 max-w-[340px] text-[11.5px] text-ink/40">
         You can still watch, redo and download clips from here.
       </p>
       <Button onClick={onBack} className="mt-1 h-11 px-5 text-[13px]">

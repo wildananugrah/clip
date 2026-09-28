@@ -10,7 +10,7 @@ export function NewVideoScreen() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto px-6 py-8 text-center sm:px-10">
-      <div className="mb-[22px] flex size-16 items-center justify-center rounded-2xl border-[1.5px] border-dashed border-black/20">
+      <div className="mb-[22px] flex size-16 items-center justify-center rounded-2xl border-[1.5px] border-dashed border-ink/20">
         <span className="ml-1 block size-0 border-y-8 border-l-[13px] border-y-transparent border-l-ink" />
       </div>
 
@@ -42,7 +42,7 @@ export function NewVideoScreen() {
             spans the full width, and at the desktop height that reads as a
             thin strip rather than a field worth tapping.
           */
-          className="h-[72px] flex-1 rounded-full border-2 border-ink bg-white px-[20px] text-[14px] text-ink outline-none focus:border-violet sm:h-[60px]"
+          className="h-[72px] flex-1 rounded-full border-2 border-ink bg-paper px-[20px] text-[14px] text-ink outline-none focus:border-violet sm:h-[60px]"
         />
         <Button
           type="submit"
@@ -55,7 +55,7 @@ export function NewVideoScreen() {
       </form>
 
       <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-        <span className="text-[12px] text-black/40">or try a sample:</span>
+        <span className="text-[12px] text-ink/40">or try a sample:</span>
         <button
           type="button"
           onClick={() => loadSample('podcast')}

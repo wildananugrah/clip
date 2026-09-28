@@ -46,13 +46,13 @@ export function ProcessingScreen() {
                     ? 'border-ink bg-ink'
                     : active
                       ? 'border-violet bg-transparent'
-                      : 'border-black/14 bg-transparent',
+                      : 'border-ink/14 bg-transparent',
                 )}
               />
               <span
                 className={cn(
                   'text-[12.5px] font-medium',
-                  done || active ? 'text-ink' : 'text-black/35',
+                  done || active ? 'text-ink' : 'text-ink/35',
                 )}
               >
                 {label}
@@ -72,8 +72,8 @@ export function ProcessingScreen() {
             <div key={i} className="w-32 flex-none">
               <div
                 className={cn(
-                  'flex items-end rounded-2xl border border-black/10 p-[9px]',
-                  isReady ? 'hatch-sand' : 'border-dashed bg-[#F1EEE8]',
+                  'flex items-end rounded-2xl border border-ink/10 p-[9px]',
+                  isReady ? 'hatch-sand' : 'border-dashed bg-pending',
                 )}
                 style={{ aspectRatio: '9/16' }}
               >
@@ -86,7 +86,7 @@ export function ProcessingScreen() {
               <div
                 className={cn(
                   'mt-[7px] text-[11.5px] font-medium',
-                  isReady ? 'text-ink-soft' : 'text-black/35',
+                  isReady ? 'text-ink-soft' : 'text-ink/35',
                 )}
               >
                 {isReady ? `Clip ${i + 1} ready` : rendering ? 'Rendering…' : 'Queued'}
@@ -110,7 +110,7 @@ export function ProcessingScreen() {
             See all clips
           </Button>
         )}
-        <span className="text-[12px] text-black/40">
+        <span className="text-[12px] text-ink/40">
           Cancelling keeps what’s finished and refunds your free video.
         </span>
       </div>

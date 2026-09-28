@@ -66,8 +66,8 @@ export function ShareClip({ clip, ratio }: { clip: Clip; ratio: Ratio }) {
       aria-busy={phase === 'preparing' || undefined}
       className={cn(
         'h-10 flex-1 md:h-[30px]',
-        phase === 'ready' && 'border-ink bg-ink text-white hover:bg-ink',
-        phase === 'preparing' && 'text-black/30',
+        phase === 'ready' && 'border-ink bg-ink text-on-ink hover:bg-ink',
+        phase === 'preparing' && 'text-ink/30',
       )}
     >
       {phase === 'preparing' ? '…' : phase === 'ready' ? 'Tap to share' : 'Share'}

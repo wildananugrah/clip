@@ -40,7 +40,7 @@ function ProjectProgress({ project }: { project: Project }) {
         className={
           running
             ? 'flex items-center gap-1.5 truncate text-[11.5px] text-violet-deep'
-            : 'truncate text-[11.5px] font-medium text-red-600'
+            : 'truncate text-[11.5px] font-medium text-red-600 dark:text-red-400'
         }
       >
         {/*
@@ -67,7 +67,7 @@ function DeleteProject({ id, title }: { id: string; title: string }) {
   const busy = state.pending === `deleteProject:${id}`
 
   if (busy) {
-    return <span className="flex-none text-[12.5px] text-black/35">Deleting…</span>
+    return <span className="flex-none text-[12.5px] text-ink/35">Deleting…</span>
   }
 
   if (confirming) {
@@ -76,14 +76,14 @@ function DeleteProject({ id, title }: { id: string; title: string }) {
         <button
           type="button"
           onClick={() => deleteProject(id)}
-          className="flex h-10 cursor-pointer items-center text-[12.5px] font-medium text-red-600 hover:text-red-700 md:h-auto"
+          className="flex h-10 cursor-pointer items-center text-[12.5px] font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 md:h-auto"
         >
           Confirm delete
         </button>
         <button
           type="button"
           onClick={() => setConfirming(false)}
-          className="flex h-10 cursor-pointer items-center text-[12.5px] font-medium text-black/45 hover:text-ink md:h-auto"
+          className="flex h-10 cursor-pointer items-center text-[12.5px] font-medium text-ink/45 hover:text-ink md:h-auto"
         >
           Cancel
         </button>
@@ -96,7 +96,7 @@ function DeleteProject({ id, title }: { id: string; title: string }) {
       type="button"
       onClick={() => setConfirming(true)}
       aria-label={`Delete ${title}`}
-      className="flex h-10 flex-none cursor-pointer items-center text-[12.5px] font-medium text-black/45 hover:text-red-600 md:h-auto"
+      className="flex h-10 flex-none cursor-pointer items-center text-[12.5px] font-medium text-ink/45 hover:text-red-600 dark:hover:text-red-400 md:h-auto"
     >
       Delete
     </button>
@@ -116,7 +116,7 @@ export function ProjectsScreen() {
           Your projects
         </h1>
         {projects.length > 0 && (
-          <span className="text-[12.5px] text-black/42">
+          <span className="text-[12.5px] text-ink/42">
             {/* The server's count once it has answered: it is the one the cap is checked against. */}
             {held.known
               ? `${held.label} projects`
@@ -133,7 +133,7 @@ export function ProjectsScreen() {
       )}
 
       {projects.length === 0 ? (
-        <div className="flex max-w-[860px] flex-col items-start gap-3.5 rounded-[18px] border-[1.5px] border-dashed border-[rgba(23,20,18,.22)] bg-white p-7">
+        <div className="flex max-w-[860px] flex-col items-start gap-3.5 rounded-[18px] border-[1.5px] border-dashed border-ink/22 bg-paper p-7">
           <p className="m-0 text-[13.5px] text-muted">
             Nothing here yet. Paste a link and your finished clips land here.
           </p>
@@ -151,18 +151,18 @@ export function ProjectsScreen() {
                 crushing the title. In the delete-confirm state the two extra
                 buttons left it about 5px wide.
               */
-              className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 rounded-[18px] border-[1.5px] border-[rgba(23,20,18,.16)] bg-white p-[13px]"
+              className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 rounded-[18px] border-[1.5px] border-ink/16 bg-paper p-[13px]"
             >
               {project.source.thumbnailUrl ? (
                 <LazyImage
                   src={project.source.thumbnailUrl}
                   fallbackClassName="hatch-sand"
-                  className="w-[82px] flex-none rounded-[7px] border border-black/12"
+                  className="w-[82px] flex-none rounded-[7px] border border-ink/12"
                   style={{ aspectRatio: '16/9' }}
                 />
               ) : (
                 <div
-                  className="hatch-sand flex w-[82px] flex-none items-center justify-center rounded-[7px] border border-black/12"
+                  className="hatch-sand flex w-[82px] flex-none items-center justify-center rounded-[7px] border border-ink/12"
                   style={{ aspectRatio: '16/9' }}
                 />
               )}
@@ -170,7 +170,7 @@ export function ProjectsScreen() {
                 <div className="mb-[3px] truncate text-[13.5px] font-semibold text-ink">
                   {project.title}
                 </div>
-                <div className="truncate text-[11.5px] text-black/45">
+                <div className="truncate text-[11.5px] text-ink/45">
                   {project.source.platform} · {project.clipCount} clips ·{' '}
                   {ago(project.createdAt)}
                 </div>
@@ -189,7 +189,7 @@ export function ProjectsScreen() {
                   type="button"
                   onClick={() => cancelJob(project.id)}
                   disabled={state.pending === `cancelJob:${project.id}` || state.pending === 'cancelJob'}
-                  className="flex h-10 flex-none cursor-pointer items-center text-[12.5px] font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:text-black/35 md:h-auto"
+                  className="flex h-10 flex-none cursor-pointer items-center text-[12.5px] font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:cursor-not-allowed disabled:text-ink/35 md:h-auto"
                 >
                   {state.pending === `cancelJob:${project.id}` || (state.pending === 'cancelJob' && state.jobId === project.id)
                     ? 'Cancelling…'
@@ -201,7 +201,7 @@ export function ProjectsScreen() {
                   onClick={() => openProject(project.id)}
                   disabled={state.pending === `openProject:${project.id}`}
                   aria-busy={state.pending === `openProject:${project.id}` || undefined}
-                  className="flex h-10 flex-none cursor-pointer items-center text-[12.5px] font-medium text-violet hover:text-violet-deep disabled:cursor-not-allowed disabled:text-black/35 md:h-auto"
+                  className="flex h-10 flex-none cursor-pointer items-center text-[12.5px] font-medium text-violet hover:text-violet-deep disabled:cursor-not-allowed disabled:text-ink/35 md:h-auto"
                 >
                   {state.pending === `openProject:${project.id}` ? 'Opening…' : 'Open'}
                 </button>

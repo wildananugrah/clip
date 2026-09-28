@@ -62,7 +62,7 @@ export function LazyImage({
         // hook badge and checkbox below it. The image is in normal flow inside
         // this box, so the box never needed to be positioned.
         'block overflow-hidden',
-        status === 'loading' && 'bg-black/[0.07] motion-safe:animate-pulse',
+        status === 'loading' && 'bg-ink/[0.07] motion-safe:animate-pulse',
         status === 'failed' && fallbackClassName,
         className,
       )}

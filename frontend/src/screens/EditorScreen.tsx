@@ -517,7 +517,7 @@ export function EditorScreen() {
             onClick={togglePlay}
             disabled={!preview}
             aria-label={playing ? 'Pause preview' : 'Play preview'}
-            className="flex size-8 flex-none cursor-pointer items-center justify-center rounded-full bg-white text-[11px] text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex size-8 flex-none cursor-pointer items-center justify-center rounded-full bg-white text-[11px] text-night disabled:cursor-not-allowed disabled:opacity-40"
           >
             {playing ? '❚❚' : '▶'}
           </button>

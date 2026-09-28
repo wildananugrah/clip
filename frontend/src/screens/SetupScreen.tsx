@@ -57,8 +57,8 @@ export function SetupScreen() {
   // back to -- the card is ~700px on a phone with ~560px to work with.
   return (
     <div className="flex min-h-0 flex-1 items-start justify-center overflow-auto p-4 sm:p-7 md:items-center">
-      <div className="animate-rise w-full max-w-[640px] overflow-hidden rounded-[22px] border-2 border-ink bg-white shadow-stamp-lg">
-        <div className="flex gap-4 border-b border-black/8 p-5">
+      <div className="animate-rise w-full max-w-[640px] overflow-hidden rounded-[22px] border-2 border-ink bg-paper shadow-stamp-lg">
+        <div className="flex gap-4 border-b border-ink/8 p-5">
           {/*
             The video's own thumbnail, where there used to be only the hatch --
             the analyse call already returns it. The hatch stays for a source
@@ -86,12 +86,12 @@ export function SetupScreen() {
               <span className="rounded-[5px] bg-violet/9 px-[7px] py-[3px] text-[10.5px] font-medium tracking-[.05em] text-violet uppercase">
                 {src.platform}
               </span>
-              <span className="text-[11.5px] text-black/40">Link recognised</span>
+              <span className="text-[11.5px] text-ink/40">Link recognised</span>
             </div>
             <h2 className="m-0 mb-[5px] text-[15px] leading-[1.35] font-semibold text-ink">
               {src.title}
             </h2>
-            <p className="m-0 text-[12.5px] text-black/45">{src.meta}</p>
+            <p className="m-0 text-[12.5px] text-ink/45">{src.meta}</p>
           </div>
         </div>
 
@@ -114,12 +114,12 @@ export function SetupScreen() {
                     }}
                     className={cn(
                       'flex h-[60px] flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[9px] border-[1.5px] transition-colors',
-                      selected ? 'border-violet bg-violet/5' : 'border-black/14 bg-white hover:bg-cream',
+                      selected ? 'border-violet bg-violet/5' : 'border-ink/14 bg-paper hover:bg-cream',
                     )}
                   >
                     <span className="text-[15px] font-semibold text-ink">{n}</span>
                     <span
-                      className={cn('text-[11px]', selected ? 'text-violet' : 'text-black/45')}
+                      className={cn('text-[11px]', selected ? 'text-violet' : 'text-ink/45')}
                     >
                       {COUNT_HINTS[i]}
                     </span>
@@ -138,13 +138,13 @@ export function SetupScreen() {
                   'flex h-[60px] flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[9px] border-[1.5px] transition-colors',
                   customOpen
                     ? 'border-violet bg-violet/5'
-                    : 'border-black/14 bg-white hover:bg-cream',
+                    : 'border-ink/14 bg-paper hover:bg-cream',
                 )}
               >
                 <span className="text-[15px] font-semibold text-ink">
                   {customOpen ? state.count : '…'}
                 </span>
-                <span className={cn('text-[11px]', customOpen ? 'text-violet' : 'text-black/45')}>
+                <span className={cn('text-[11px]', customOpen ? 'text-violet' : 'text-ink/45')}>
                   custom
                 </span>
               </button>
@@ -152,7 +152,7 @@ export function SetupScreen() {
 
             {customOpen && (
               <div className="mt-2.5 flex items-center gap-2.5">
-                <label htmlFor="clip-count" className="text-[12px] text-black/55">
+                <label htmlFor="clip-count" className="text-[12px] text-ink/55">
                   Number of clips
                 </label>
                 <input
@@ -183,7 +183,7 @@ export function SetupScreen() {
                   }}
                   className="h-9 w-[84px] rounded-[8px] border-[1.5px] border-ink px-2.5 text-[13px] text-ink outline-none focus:border-violet"
                 />
-                <span className="text-[11.5px] text-black/42">
+                <span className="text-[11.5px] text-ink/42">
                   {CLIP_COUNT_MIN}–{CLIP_COUNT_MAX}
                 </span>
               </div>
@@ -236,7 +236,7 @@ export function SetupScreen() {
             <Toggle on={state.subs} label="Burn in subtitles" />
             <span className="min-w-0">
               <span className="block text-[12.5px] font-medium text-ink">Burn in subtitles</span>
-              <span className="block text-[11.5px] text-black/45">
+              <span className="block text-[11.5px] text-ink/45">
                 Auto-transcribed, editable per clip later
               </span>
             </span>
@@ -250,7 +250,7 @@ export function SetupScreen() {
           <fieldset className="m-0 border-0 p-0">
             <legend className="mb-[9px] p-0 text-[12.5px] font-medium text-ink">
               What should the clips be about?{' '}
-              <span className="font-normal text-black/42">optional</span>
+              <span className="font-normal text-ink/42">optional</span>
             </legend>
             <textarea
               id="clip-prompt"
@@ -259,10 +259,10 @@ export function SetupScreen() {
               maxLength={PROMPT_MAX}
               rows={3}
               placeholder="e.g. only the parts where he talks about his first startup failing"
-              className="w-full resize-y rounded-[9px] border-[1.5px] border-black/14 bg-white px-3 py-2.5 text-[13px] leading-[1.5] text-ink outline-none placeholder:text-black/30 focus:border-violet"
+              className="w-full resize-y rounded-[9px] border-[1.5px] border-ink/14 bg-paper px-3 py-2.5 text-[13px] leading-[1.5] text-ink outline-none placeholder:text-ink/30 focus:border-violet"
             />
             <div className="mt-1.5 flex items-start justify-between gap-3">
-              <span className="text-[11.5px] text-black/45">
+              <span className="text-[11.5px] text-ink/45">
                 Steers which moments get picked. Leave empty to find the strongest
                 hooks anywhere in the video.
               </span>
@@ -271,7 +271,7 @@ export function SetupScreen() {
                 0/500 under an empty box reads as a quota to fill.
               */}
               {state.prompt.length > PROMPT_MAX * 0.8 && (
-                <span className="shrink-0 text-[11.5px] tabular-nums text-black/42">
+                <span className="shrink-0 text-[11.5px] tabular-nums text-ink/42">
                   {state.prompt.length}/{PROMPT_MAX}
                 </span>
               )}
@@ -293,7 +293,7 @@ export function SetupScreen() {
               computed at a fixed 12 clips, and "uses 1 of 3" was hardcoded text
               that ignored the real allowance.
             */}
-            <span className="text-[12px] whitespace-nowrap text-black/42">
+            <span className="text-[12px] whitespace-nowrap text-ink/42">
               {etaForCount(src.durationSeconds, state.count)}
               {allowance.known &&
                 (allowance.exhausted

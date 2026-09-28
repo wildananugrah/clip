@@ -52,7 +52,7 @@ export function LoginScreen() {
   const error = code ? (ERRORS[code] ?? 'Sign-in failed. Try again.') : null
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-1 bg-white lg:grid-cols-[1.05fr_.95fr]">
+    <div className="grid min-h-0 flex-1 grid-cols-1 bg-paper lg:grid-cols-[1.05fr_.95fr]">
       <div className="flex flex-col overflow-auto px-6 py-10 sm:px-[52px] sm:py-12">
         <div className="mb-auto">
           {/* Back to the front page. A real link, switched in place on a plain click. */}
@@ -81,7 +81,7 @@ export function LoginScreen() {
           {error && (
             <p
               role="alert"
-              className="mt-0 mb-1 rounded-[10px] bg-[#FDECEC] px-3.5 py-2.5 text-[12.5px] leading-[1.45] text-[#8C2F2F]"
+              className="mt-0 mb-1 rounded-[10px] bg-danger-soft px-3.5 py-2.5 text-[12.5px] leading-[1.45] text-danger-ink"
             >
               {error}
             </p>
@@ -100,7 +100,7 @@ export function LoginScreen() {
             Continue with Google
           </Button>
 
-          <p className="mt-3 mb-0 text-[11.5px] leading-[1.5] text-black/40">
+          <p className="mt-3 mb-0 text-[11.5px] leading-[1.5] text-ink/40">
             By continuing you agree to the terms. We only download videos you have the right to use.
           </p>
         </div>

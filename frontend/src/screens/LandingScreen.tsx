@@ -12,6 +12,7 @@
  */
 import type { MouseEvent, ReactNode } from 'react'
 import { Logo } from '../components/Logo'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { cn } from '../lib/cn'
 import { useApp } from '../state/AppContext'
 
@@ -85,9 +86,9 @@ function LoginLink({ className, children }: { className: string; children: React
 }
 
 const primary =
-  'inline-flex items-center justify-center rounded-full border-2 border-ink bg-violet px-6 font-semibold text-white shadow-stamp transition-colors hover:bg-violet-deep'
+  'inline-flex items-center justify-center rounded-full border-2 border-ink bg-violet px-6 font-semibold text-on-violet shadow-stamp transition-colors hover:bg-violet-deep'
 const outline =
-  'inline-flex items-center justify-center rounded-full border-2 border-ink bg-white px-5 font-medium text-ink-soft transition-colors hover:bg-cream'
+  'inline-flex items-center justify-center rounded-full border-2 border-ink bg-paper px-5 font-medium text-ink-soft transition-colors hover:bg-cream'
 
 function ClipTile({ tile }: { tile: (typeof TILES)[number] }) {
   return (
@@ -99,7 +100,7 @@ function ClipTile({ tile }: { tile: (typeof TILES)[number] }) {
       style={{ aspectRatio: '9/16' }}
       aria-hidden="true"
     >
-      <span className="absolute top-2.5 left-2.5 -rotate-3 rounded-full border-[1.5px] border-ink bg-lime px-2 py-[3px] text-[10.5px] font-bold text-ink">
+      <span className="absolute top-2.5 left-2.5 -rotate-3 rounded-full border-[1.5px] border-on-lime bg-lime px-2 py-[3px] text-[10.5px] font-bold text-on-lime">
         {tile.hook} hook
       </span>
       {/* Where the renderer puts captions: just below the middle. */}
@@ -116,10 +117,11 @@ function ClipTile({ tile }: { tile: (typeof TILES)[number] }) {
 export function LandingScreen() {
   return (
     <div className="min-h-0 flex-1 overflow-auto bg-cream">
-      <header className="sticky top-0 z-20 border-b border-black/8 bg-cream/90 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-ink/8 bg-cream/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1120px] items-center gap-3 px-5 sm:px-8">
           <Logo />
           <nav className="ml-auto flex items-center gap-2.5">
+            <ThemeToggle />
             <LoginLink className="px-2 text-[13.5px] font-medium text-ink-soft hover:text-ink">
               Log in
             </LoginLink>
@@ -132,7 +134,7 @@ export function LandingScreen() {
         {/* --- hero --------------------------------------------------------- */}
         <section className="mx-auto grid max-w-[1120px] items-center gap-12 px-5 pt-14 pb-16 sm:px-8 md:pt-20 lg:grid-cols-[1.1fr_.9fr]">
           <div>
-            <p className="m-0 mb-4 inline-block rounded-full bg-lime px-3 py-1 text-[12px] font-semibold text-ink">
+            <p className="m-0 mb-4 inline-block rounded-full bg-lime px-3 py-1 text-[12px] font-semibold text-on-lime">
               Free while in beta
             </p>
             <h1 className="m-0 mb-5 max-w-[560px] font-display text-[40px] leading-[1.05] font-bold tracking-[-0.03em] text-ink sm:text-[54px]">
@@ -148,7 +150,7 @@ export function LandingScreen() {
                 See how it works
               </a>
             </div>
-            <p className="mt-4 mb-0 text-[12.5px] text-black/45">
+            <p className="mt-4 mb-0 text-[12.5px] text-ink/45">
               No card. No watermark. Sign in with Google.
             </p>
           </div>
@@ -161,7 +163,7 @@ export function LandingScreen() {
         </section>
 
         {/* --- how it works ------------------------------------------------- */}
-        <section id="how" className="scroll-mt-16 border-y border-black/8 bg-white">
+        <section id="how" className="scroll-mt-16 border-y border-ink/8 bg-paper">
           <div className="mx-auto max-w-[1120px] px-5 py-16 sm:px-8">
             <h2 className="m-0 mb-10 font-display text-[30px] leading-[1.15] font-bold tracking-[-0.02em] text-ink">
               Three steps, a few minutes of your time.
@@ -170,9 +172,9 @@ export function LandingScreen() {
               {STEPS.map((s) => (
                 <li
                   key={s.n}
-                  className="rounded-[18px] border-[1.5px] border-[rgba(23,20,18,.16)] bg-cream p-6"
+                  className="rounded-[18px] border-[1.5px] border-ink/16 bg-cream p-6"
                 >
-                  <span className="mb-4 flex size-9 items-center justify-center rounded-full border-2 border-ink bg-lime font-display text-[16px] font-bold text-ink">
+                  <span className="mb-4 flex size-9 items-center justify-center rounded-full border-2 border-ink bg-lime font-display text-[16px] font-bold text-on-lime">
                     {s.n}
                   </span>
                   <h3 className="m-0 mb-2 text-[16px] font-semibold text-ink">{s.title}</h3>
@@ -180,7 +182,7 @@ export function LandingScreen() {
                 </li>
               ))}
             </ol>
-            <p className="mt-6 mb-0 text-[13px] text-black/45">
+            <p className="mt-6 mb-0 text-[13px] text-ink/45">
               The clips render while you do something else — a long video takes a while. You can
               close the tab and come back.
             </p>
@@ -219,8 +221,8 @@ export function LandingScreen() {
         </section>
       </main>
 
-      <footer className="border-t border-black/8">
-        <div className="mx-auto flex max-w-[1120px] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-6 text-[12.5px] text-black/45 sm:px-8">
+      <footer className="border-t border-ink/8">
+        <div className="mx-auto flex max-w-[1120px] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-6 text-[12.5px] text-ink/45 sm:px-8">
           <Logo size="sm" />
           <span>Only download videos you have the right to use.</span>
         </div>
