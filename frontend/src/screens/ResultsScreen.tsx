@@ -68,7 +68,7 @@ export function ResultsScreen() {
             <h1 className="m-0 mb-1 truncate text-[17px] leading-[1.3] font-semibold text-ink">
               {src?.title ?? 'Your clips'}
             </h1>
-            <p className="m-0 text-[12.5px] text-black/45">
+            <p className="m-0 text-[12.5px] text-ink/45">
               {src ? `${src.platform} · ${src.length} source · ` : ''}
               {state.clips.length} clips
             </p>
@@ -95,7 +95,7 @@ export function ResultsScreen() {
                   onClick={() => setFilter(label)}
                   className={cn(
                     'flex h-[30px] cursor-pointer items-center rounded-[7px] px-[13px] text-[12.5px] font-semibold transition-colors',
-                    on ? 'bg-white text-ink shadow-[0_1px_2px_rgba(0,0,0,.08)]' : 'text-muted',
+                    on ? 'bg-paper text-ink shadow-[0_1px_2px_rgba(0,0,0,.08)]' : 'text-muted',
                   )}
                 >
                   {label}
@@ -108,7 +108,7 @@ export function ResultsScreen() {
             {state.sortByScore ? 'Sort: hook score' : 'Sort: time in video'}
           </Button>
 
-          <span className="ml-auto text-[12.5px] text-black/45">{state.clips.length} clips</span>
+          <span className="ml-auto text-[12.5px] text-ink/45">{state.clips.length} clips</span>
           <MomentsToggle />
         </div>
 
@@ -122,8 +122,8 @@ export function ResultsScreen() {
                 <article
                   key={clip.id}
                   className={cn(
-                    'group/card relative overflow-hidden rounded-[18px] border-2 bg-white shadow-card transition-colors',
-                    clip.selected ? 'border-violet' : 'border-black/10',
+                    'group/card relative overflow-hidden rounded-[18px] border-2 bg-paper shadow-card transition-colors',
+                    clip.selected ? 'border-violet' : 'border-ink/10',
                   )}
                 >
                   <button
@@ -148,7 +148,7 @@ export function ResultsScreen() {
                       {FEATURES.showHookScore && (
                         <span
                           className={cn(
-                            '-rotate-3 rounded-full border-[1.5px] border-ink px-2 py-[3px] text-[10.5px] font-bold text-ink',
+                            '-rotate-3 rounded-full border-[1.5px] border-on-lime px-2 py-[3px] text-[10.5px] font-bold text-on-lime',
                             clip.sc >= 80 ? 'bg-lime' : 'bg-[#FFF6E2]',
                           )}
                         >
@@ -157,7 +157,7 @@ export function ResultsScreen() {
                       )}
                       <span
                         className={cn(
-                          'ml-auto flex size-5 flex-none items-center justify-center rounded-[5px] border-[1.5px] text-[11px] leading-none text-white',
+                          'ml-auto flex size-5 flex-none items-center justify-center rounded-[5px] border-[1.5px] text-[11px] leading-none text-on-violet',
                           clip.selected
                             ? 'border-violet bg-violet'
                             : 'border-white/90 bg-black/12',
@@ -203,7 +203,7 @@ export function ResultsScreen() {
                     <h2 className="m-0 mb-[5px] text-[12.5px] leading-[1.35] font-semibold text-ink">
                       {busy ? 'Regenerating…' : clipTitle(clip)}
                     </h2>
-                    <p className="m-0 mb-[7px] text-[11px] text-black/42">
+                    <p className="m-0 mb-[7px] text-[11px] text-ink/42">
                       {fmt(clip.s)} → {fmt(clip.e)}
                     </p>
                     {FEATURES.showTranscriptSnippet && (
@@ -227,7 +227,7 @@ export function ResultsScreen() {
                       <Chip
                         onClick={() => redoClip(clip.id)}
                         disabled={busy}
-                        className={cn('h-10 flex-1 md:h-[30px]', busy && 'text-black/30')}
+                        className={cn('h-10 flex-1 md:h-[30px]', busy && 'text-ink/30')}
                       >
                         {busy ? '…' : 'Redo'}
                       </Chip>
@@ -245,13 +245,13 @@ export function ResultsScreen() {
           below the border and out of reach on a phone. Desktop is unchanged at
           66px, since the contents fit on one line there.
         */}
-        <div className="flex min-h-[66px] flex-none flex-wrap items-center gap-x-4 gap-y-2.5 border-t border-black/8 bg-white px-5 py-3 sm:px-[26px] sm:py-0">
+        <div className="flex min-h-[66px] flex-none flex-wrap items-center gap-x-4 gap-y-2.5 border-t border-ink/8 bg-paper px-5 py-3 sm:px-[26px] sm:py-0">
           <span className="text-[13.5px] font-semibold text-ink">
             {selected === 0
               ? 'No clips selected'
               : `${selected} ${selected === 1 ? 'clip' : 'clips'} selected`}
           </span>
-          <span className="text-[12.5px] text-black/42">{exportLabel(state.filter, state.subs)}</span>
+          <span className="text-[12.5px] text-ink/42">{exportLabel(state.filter, state.subs)}</span>
           <div className="ml-auto flex gap-2.5">
             <Button variant="outline" onClick={toggleSelectAll} className="h-10 px-4 text-[13px]">
               {allSelected ? 'Clear selection' : 'Select all'}

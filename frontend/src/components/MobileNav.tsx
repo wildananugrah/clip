@@ -19,10 +19,10 @@ export function MobileNav() {
   const job = jobIndicator(state)
 
   return (
-    <div className="flex-none border-b border-black/8 bg-white px-4 py-3 md:hidden">
+    <div className="flex-none border-b border-ink/8 bg-paper px-4 py-3 md:hidden">
       <div className="flex items-center gap-3">
         <Logo size="sm" />
-        <span className="ml-auto text-[11.5px] text-black/45">{quota(state.quota).label}</span>
+        <span className="ml-auto text-[11.5px] text-ink/45">{quota(state.quota).label}</span>
         <Button onClick={goNew} className="h-10 px-3.5 text-[12px]">
           + New
         </Button>

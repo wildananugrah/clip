@@ -11,7 +11,7 @@ export function Meter({
   className?: string
 }) {
   return (
-    <div className={cn('overflow-hidden rounded-[3px] bg-black/8', className)}>
+    <div className={cn('overflow-hidden rounded-[3px] bg-ink/8', className)}>
       <div
         className={cn(
           'h-full',

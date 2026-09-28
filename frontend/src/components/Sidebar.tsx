@@ -6,6 +6,7 @@ import { Button } from './Button'
 import { JobIndicator } from './JobIndicator'
 import { Logo } from './Logo'
 import { Meter } from './Meter'
+import { ThemeToggle } from './ThemeToggle'
 
 const NAV: Array<{ label: string; screen: Screen }> = [
   { label: 'Projects', screen: 'projects' },
@@ -20,7 +21,7 @@ export function Sidebar() {
   const job = jobIndicator(state)
 
   return (
-    <nav className="hidden w-[212px] flex-none flex-col border-r border-black/8 bg-white px-3.5 py-[18px] md:flex">
+    <nav className="hidden w-[212px] flex-none flex-col border-r border-ink/8 bg-paper px-3.5 py-[18px] md:flex">
       <div className="px-1.5 pb-[18px]">
         <Logo size="sm" />
       </div>
@@ -68,28 +69,31 @@ export function Sidebar() {
           <div
             className={cn(
               'mb-1.5 text-[12px] font-medium',
-              allowance.exhausted ? 'text-[#8C2F2F]' : 'text-ink',
+              allowance.exhausted ? 'text-danger-ink' : 'text-ink',
             )}
           >
             {allowance.label}
           </div>
           <Meter value={allowance.width} className="mb-2 h-1 rounded-[2px]" />
-          <p className="m-0 text-[11.5px] leading-[1.45] text-black/45">
+          <p className="m-0 text-[11.5px] leading-[1.45] text-ink/45">
             {/* A calendar month, counted in UTC -- see quotaWindow on the server. */}
             {allowance.resetLabel || 'Clips stay for 30 days.'}
           </p>
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={signOut}
-        disabled={state.pending === 'signOut'}
-        aria-busy={state.pending === 'signOut' || undefined}
-        className="mt-2.5 cursor-pointer px-1.5 text-left text-[11.5px] font-medium text-black/40 hover:text-ink disabled:cursor-not-allowed"
-      >
-        {state.pending === 'signOut' ? 'Signing out…' : 'Sign out'}
-      </button>
+      <div className="mt-2.5 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={signOut}
+          disabled={state.pending === 'signOut'}
+          aria-busy={state.pending === 'signOut' || undefined}
+          className="cursor-pointer px-1.5 text-left text-[11.5px] font-medium text-ink/40 hover:text-ink disabled:cursor-not-allowed"
+        >
+          {state.pending === 'signOut' ? 'Signing out…' : 'Sign out'}
+        </button>
+        <ThemeToggle className="-my-2" />
+      </div>
     </nav>
   )
 }

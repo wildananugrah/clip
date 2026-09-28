@@ -6,12 +6,13 @@ import { Toggle } from '../components/Toggle'
 import { LENGTHS, RATIOS } from '../data/fixtures'
 import { cn } from '../lib/cn'
 import { formatsLabel } from '../lib/derive'
+import { setThemePref, useThemePref, type ThemePref } from '../lib/theme'
 import { useApp } from '../state/AppContext'
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-[20px] border-[1.5px] border-[rgba(23,20,18,.16)] bg-white">
-      <h2 className="m-0 border-b border-black/7 px-[18px] py-3.5 text-[11px] font-semibold tracking-[.07em] text-black/40 uppercase">
+    <section className="overflow-hidden rounded-[20px] border-[1.5px] border-ink/16 bg-paper">
+      <h2 className="m-0 border-b border-ink/7 px-[18px] py-3.5 text-[11px] font-semibold tracking-[.07em] text-ink/40 uppercase">
         {title}
       </h2>
       {children}
@@ -27,12 +28,18 @@ function RowTitle({ title, hint }: { title: string; hint: string }) {
   return (
     <span className="block">
       <span className="block text-[13px] font-medium text-ink">{title}</span>
-      <span className="block text-[11.5px] text-black/45">{hint}</span>
+      <span className="block text-[11.5px] text-ink/45">{hint}</span>
     </span>
   )
 }
 
-const divider = 'border-b border-black/7'
+const divider = 'border-b border-ink/7'
+
+const THEMES: Array<{ pref: ThemePref; label: string }> = [
+  { pref: 'system', label: 'System' },
+  { pref: 'light', label: 'Light' },
+  { pref: 'dark', label: 'Dark' },
+]
 
 export function SettingsScreen() {
   const {
@@ -47,6 +54,8 @@ export function SettingsScreen() {
     updatePassword,
     signOut,
   } = useApp()
+
+  const themePref = useThemePref()
 
   const pwTooShort = state.pwNext.length > 0 && state.pwNext.length < 8
   const pwReady = Boolean(state.pwCurrent) && state.pwNext.length >= 8
@@ -68,7 +77,7 @@ export function SettingsScreen() {
 
           <Row className={divider}>
             <div className="mb-[3px] text-[13px] font-medium text-ink">Formats to render</div>
-            <div className="mb-[11px] text-[11.5px] text-black/45">
+            <div className="mb-[11px] text-[11.5px] text-ink/45">
               Currently {formatsLabel(state.formats)}
             </div>
             <div className="flex max-w-[300px] gap-1.5">
@@ -110,6 +119,27 @@ export function SettingsScreen() {
           </button>
         </Card>
 
+        <Card title="Appearance">
+          <Row>
+            <div className="mb-[3px] text-[13px] font-medium text-ink">Theme</div>
+            <div className="mb-[11px] text-[11.5px] text-ink/45">
+              System follows your device. Saved on this browser.
+            </div>
+            <div role="group" aria-label="Theme" className="flex max-w-[300px] gap-1.5">
+              {THEMES.map((t) => (
+                <OptionChip
+                  key={t.pref}
+                  selected={themePref === t.pref}
+                  onClick={() => setThemePref(t.pref)}
+                  className="h-[34px] rounded-full border-[1.5px]"
+                >
+                  {t.label}
+                </OptionChip>
+              ))}
+            </div>
+          </Row>
+        </Card>
+
         <Card title="Account">
           {/*
             The real session, not the prototype's hardcoded address. Sign out
@@ -132,7 +162,7 @@ export function SettingsScreen() {
                 {/* Google does not always return a name. */}
                 {state.user?.name ?? state.user?.email ?? 'Signed in'}
               </div>
-              <div className="truncate text-[11.5px] text-black/45">
+              <div className="truncate text-[11.5px] text-ink/45">
                 {state.user ? state.user.email : 'Checking your session…'}
               </div>
             </div>
@@ -149,7 +179,7 @@ export function SettingsScreen() {
               onClick={signOut}
               disabled={state.pending === 'signOut'}
               aria-busy={state.pending === 'signOut' || undefined}
-              className="flex h-10 cursor-pointer items-center text-[12.5px] font-medium text-violet hover:text-violet-deep disabled:cursor-not-allowed disabled:text-black/35 md:h-auto"
+              className="flex h-10 cursor-pointer items-center text-[12.5px] font-medium text-violet hover:text-violet-deep disabled:cursor-not-allowed disabled:text-ink/35 md:h-auto"
             >
               {state.pending === 'signOut' ? 'Signing out…' : 'Sign out'}
             </button>
@@ -184,7 +214,7 @@ export function SettingsScreen() {
               value={state.pwCurrent}
               onChange={(e) => setPwCurrent(e.target.value)}
               placeholder="••••••••"
-              className="h-10 rounded-full border-[1.5px] border-[rgba(23,20,18,.3)] px-3.5 text-[13px] text-ink outline-none focus:border-violet"
+              className="h-10 rounded-full border-[1.5px] border-ink/30 px-3.5 text-[13px] text-ink outline-none focus:border-violet"
             />
 
             <label htmlFor="pw-next" className="text-[12px] font-medium text-ink-soft">
@@ -198,12 +228,12 @@ export function SettingsScreen() {
               onChange={(e) => setPwNext(e.target.value)}
               placeholder="At least 8 characters"
               aria-describedby="pw-hint"
-              className="h-10 rounded-full border-[1.5px] border-[rgba(23,20,18,.3)] px-3.5 text-[13px] text-ink outline-none focus:border-violet"
+              className="h-10 rounded-full border-[1.5px] border-ink/30 px-3.5 text-[13px] text-ink outline-none focus:border-violet"
             />
 
             <p
               id="pw-hint"
-              className={cn('m-0 text-[11.5px]', pwTooShort ? 'text-danger' : 'text-black/42')}
+              className={cn('m-0 text-[11.5px]', pwTooShort ? 'text-danger' : 'text-ink/42')}
             >
               {pwTooShort
                 ? 'A bit longer — 8 characters minimum.'

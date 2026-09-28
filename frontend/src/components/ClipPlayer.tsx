@@ -108,7 +108,7 @@ export function ClipPlayer({
             )}
           </div>
         ) : (
-          <div className="rounded-[14px] bg-white px-6 py-8 text-[13px] text-muted">
+          <div className="rounded-[14px] bg-paper px-6 py-8 text-[13px] text-muted">
             That format is not ready for this clip yet.
           </div>
         )}

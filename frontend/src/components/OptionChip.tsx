@@ -14,7 +14,7 @@ export function OptionChip({
       aria-pressed={selected}
       className={cn(
         'flex flex-1 cursor-pointer items-center justify-center border text-[12.5px] font-medium text-ink transition-colors',
-        selected ? 'border-violet bg-violet/5' : 'border-black/14 bg-white hover:bg-cream',
+        selected ? 'border-violet bg-violet/5' : 'border-ink/14 bg-paper hover:bg-cream',
         className,
       )}
       {...rest}

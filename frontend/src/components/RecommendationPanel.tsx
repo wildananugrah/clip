@@ -46,11 +46,11 @@ export function MomentsToggle() {
       onClick={toggleRecsOpen}
       aria-expanded={state.recsOpen}
       aria-controls="moments-panel"
-      className={cn('h-8 gap-1.5 px-3 text-[12.5px]', state.recsOpen && 'bg-black/[0.055]')}
+      className={cn('h-8 gap-1.5 px-3 text-[12.5px]', state.recsOpen && 'bg-ink/[0.055]')}
     >
       Moments
       {n > 0 && (
-        <span className="rounded-full bg-ink px-1.5 text-[10.5px] leading-[17px] font-semibold text-white tabular-nums">
+        <span className="rounded-full bg-ink px-1.5 text-[10.5px] leading-[17px] font-semibold text-on-ink tabular-nums">
           {n}
         </span>
       )}
@@ -125,15 +125,15 @@ export function RecommendationPanel() {
     <aside
       id="moments-panel"
       aria-label="Moments"
-      className="fixed inset-0 z-40 flex flex-col bg-cream md:static md:z-auto md:w-[380px] md:flex-none md:border-l md:border-black/8"
+      className="fixed inset-0 z-40 flex flex-col bg-cream md:static md:z-auto md:w-[380px] md:flex-none md:border-l md:border-ink/8"
     >
-      <header className="flex flex-none items-center gap-2 border-b border-black/8 px-4 py-3">
+      <header className="flex flex-none items-center gap-2 border-b border-ink/8 px-4 py-3">
         <h2 className="m-0 flex-1 text-[13.5px] font-semibold text-ink">Moments</h2>
         <button
           type="button"
           onClick={toggleRecsOpen}
           aria-label="Hide moments"
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-[7px] text-[15px] text-black/45 hover:bg-black/[0.055] hover:text-ink"
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-[7px] text-[15px] text-ink/45 hover:bg-ink/[0.055] hover:text-ink"
         >
           ✕
         </button>
@@ -142,7 +142,7 @@ export function RecommendationPanel() {
       {/* role="log": a screen reader announces each new reply as it lands. */}
       <div role="log" aria-live="polite" className="min-h-0 flex-1 overflow-auto px-4 py-4">
         {state.recsLoading && state.recs.length === 0 && (
-          <p className="m-0 text-[12px] text-black/42">Loading…</p>
+          <p className="m-0 text-[12px] text-ink/42">Loading…</p>
         )}
 
         <ol className="m-0 flex list-none flex-col gap-4 p-0">
@@ -152,12 +152,12 @@ export function RecommendationPanel() {
               <li key={round.id} className="flex flex-col gap-2">
                 {/* The opening round has no message: nobody asked for it. */}
                 {round.message !== null && (
-                  <p className="m-0 max-w-[85%] self-end rounded-[12px] rounded-br-[4px] bg-ink px-3 py-2 text-[12.5px] leading-[1.45] text-white">
+                  <p className="m-0 max-w-[85%] self-end rounded-[12px] rounded-br-[4px] bg-ink px-3 py-2 text-[12.5px] leading-[1.45] text-on-ink">
                     {round.message}
                   </p>
                 )}
 
-                <div className="max-w-[94%] self-start rounded-[12px] rounded-bl-[4px] border border-black/8 bg-white px-3 py-2.5">
+                <div className="max-w-[94%] self-start rounded-[12px] rounded-bl-[4px] border border-ink/8 bg-paper px-3 py-2.5">
                   <p className="m-0 text-[12.5px] leading-[1.45] text-ink">{replyText(round)}</p>
 
                   {round.candidates.length > 0 && (
@@ -169,8 +169,8 @@ export function RecommendationPanel() {
                             <div
                               className={cn(
                                 'flex items-start gap-2 rounded-[9px] border-[1.5px] px-2 py-1.5',
-                                rec.taken ? 'border-black/8 opacity-55' : 'border-black/12',
-                                on && 'border-ink/35 bg-black/[0.03]',
+                                rec.taken ? 'border-ink/8 opacity-55' : 'border-ink/12',
+                                on && 'border-ink/35 bg-ink/[0.03]',
                               )}
                             >
                               <input
@@ -185,7 +185,7 @@ export function RecommendationPanel() {
                                 <span className="block text-[12px] leading-[1.35] font-semibold text-ink">
                                   {rec.title}
                                 </span>
-                                <span className="mt-[2px] block text-[11px] text-black/42">
+                                <span className="mt-[2px] block text-[11px] text-ink/42">
                                   {fmt(rec.start)} → {fmt(rec.end)}
                                   {rec.taken && ' · already clipped'}
                                 </span>
@@ -221,14 +221,14 @@ export function RecommendationPanel() {
 
         {/* Five to fifteen seconds of waiting needs to look like waiting. */}
         {state.recsAsking && (
-          <p className="m-0 mt-4 w-fit animate-pulse rounded-[12px] rounded-bl-[4px] border border-black/8 bg-white px-3 py-2 text-[12.5px] text-black/45">
+          <p className="m-0 mt-4 w-fit animate-pulse rounded-[12px] rounded-bl-[4px] border border-ink/8 bg-paper px-3 py-2 text-[12.5px] text-ink/45">
             Thinking…
           </p>
         )}
         <div ref={end} />
       </div>
 
-      <div className="flex-none border-t border-black/8 px-4 py-3">
+      <div className="flex-none border-t border-ink/8 px-4 py-3">
         <div className="flex items-end gap-2">
           <textarea
             value={draft}
@@ -245,7 +245,7 @@ export function RecommendationPanel() {
             disabled={busy}
             placeholder="Ask for other moments, e.g. only the parts about riba"
             aria-label="Ask for other moments"
-            className="min-w-0 flex-1 resize-none rounded-[9px] border-[1.5px] border-black/14 bg-white px-2.5 py-2 text-[12.5px] leading-[1.45] text-ink outline-none focus:border-ink/35 disabled:bg-black/[0.03]"
+            className="min-w-0 flex-1 resize-none rounded-[9px] border-[1.5px] border-ink/14 bg-paper px-2.5 py-2 text-[12.5px] leading-[1.45] text-ink outline-none focus:border-ink/35 disabled:bg-ink/[0.03]"
           />
           <Chip onClick={send} disabled={busy || !draft.trim()} className="h-10 px-3.5">
             {state.recsAsking ? '…' : 'Send'}
@@ -256,7 +256,7 @@ export function RecommendationPanel() {
           something to read and act on, and a toast is gone in 2.6 seconds.
         */}
         {state.recsError && (
-          <p className="m-0 mt-2 text-[11.5px] text-red-600">{state.recsError}</p>
+          <p className="m-0 mt-2 text-[11.5px] text-red-600 dark:text-red-400">{state.recsError}</p>
         )}
       </div>
     </aside>

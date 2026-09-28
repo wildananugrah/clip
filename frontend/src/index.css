@@ -1,11 +1,25 @@
 @import 'tailwindcss';
 
+/*
+ * `dark:` follows the resolved theme on <html data-theme>, not the OS setting
+ * directly, so a user who picks Light on a dark OS gets light. See lib/theme.ts.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 @theme {
   --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Bricolage Grotesque', 'Geist', ui-sans-serif, sans-serif;
 
+  /*
+   * Every colour below that has a dark twin is swapped in the
+   * :root[data-theme='dark'] block further down. Utilities read these as
+   * var()s, so `text-ink/45` and friends follow the theme with no dark: variant.
+   */
+
   /* Paper side of the app */
   --color-cream: #fffaf2;
+  /* Cards, the sidebar, inputs: the surface that sits on cream. */
+  --color-paper: #ffffff;
   --color-sand: #f3e9d8;
   --color-sand-deep: #f0e5d2;
   --color-sand-deeper: #e9dac2;
@@ -15,21 +29,33 @@
   --color-ink: #171412;
   --color-ink-soft: #44423e;
   --color-muted: #6b6862;
+  /* Text on an ink surface: a Toast, an ink button. */
+  --color-on-ink: #ffffff;
 
   /* Accents */
   --color-violet: #6c4bff;
   --color-violet-deep: #5638e6;
+  --color-on-violet: #ffffff;
   --color-lime: #d9f27a;
+  /* Lime stays lime in both themes, so what sits on it stays dark. */
+  --color-on-lime: #171412;
   --color-danger: #b4321f;
+  /* An error message: its text, its background, its border. */
+  --color-danger-ink: #8c2f2f;
+  --color-danger-soft: #fdecec;
+  --color-danger-line: #f0d2d2;
+  /* A clip that is not ready yet, on the processing screen. */
+  --color-pending: #f1eee8;
 
-  /* Editor side of the app */
+  /* Editor side of the app. Dark in both themes. */
   --color-night: #1b1527;
   --color-night-panel: #231b33;
   --color-night-lilac: #c9baff;
 
-  --shadow-stamp: 2px 2px 0 #171412;
-  --shadow-stamp-lg: 6px 6px 0 rgba(23, 20, 18, 0.12);
-  --shadow-card: 3px 3px 0 rgba(23, 20, 18, 0.09);
+  /* Drawn in ink, so the stamp turns light with it in the dark theme. */
+  --shadow-stamp: 2px 2px 0 var(--color-ink);
+  --shadow-stamp-lg: 6px 6px 0 color-mix(in oklab, var(--color-ink) 12%, transparent);
+  --shadow-card: 3px 3px 0 color-mix(in oklab, var(--color-ink) 9%, transparent);
   --shadow-toast: 0 6px 24px rgba(0, 0, 0, 0.22);
 
   --animate-rise: rise 0.25s ease both;
@@ -54,10 +80,58 @@
   background: repeating-linear-gradient(135deg, #2c2440 0 7px, #332a49 7px 14px);
 }
 @utility hatch-sand {
-  background: repeating-linear-gradient(135deg, #f0e5d2 0 6px, #f8f0e3 6px 12px);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-hatch-sand-a) 0 6px,
+    var(--color-hatch-sand-b) 6px 12px
+  );
 }
 @utility hatch-clip {
-  background: repeating-linear-gradient(135deg, #eee3ce 0 6px, #f7efe1 6px 12px);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-hatch-clip-a) 0 6px,
+    var(--color-hatch-clip-b) 6px 12px
+  );
+}
+
+/*
+ * The dark theme: a warm near-black paper with cream ink, so the stamp-and-ink
+ * look survives the swap. Unlayered, so it beats the @theme defaults.
+ *
+ * Violet is lifted for contrast on dark paper (5.5:1 as text), which is too
+ * light to carry white text -- hence on-violet flipping to dark with it.
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-cream: #14110e;
+  --color-paper: #1d1915;
+  --color-sand: #2b251e;
+  --color-sand-deep: #312a22;
+  --color-sand-deeper: #3d3429;
+  --color-track: #4a443c;
+
+  --color-ink: #f3ede3;
+  --color-ink-soft: #d4cec4;
+  --color-muted: #a59f95;
+  --color-on-ink: #14110e;
+
+  --color-violet: #8f75ff;
+  --color-violet-deep: #a792ff;
+  --color-on-violet: #14110e;
+
+  --color-danger: #ff8a75;
+  --color-danger-ink: #ffb3a6;
+  --color-danger-soft: #3b1d18;
+  --color-danger-line: #5c2b23;
+  --color-pending: #26211b;
+
+  --color-hatch-sand-a: #2b251e;
+  --color-hatch-sand-b: #231e18;
+  --color-hatch-clip-a: #2e2720;
+  --color-hatch-clip-b: #25201a;
+
+  --shadow-toast: 0 6px 24px rgba(0, 0, 0, 0.55);
 }
 
 @layer base {
@@ -65,6 +139,19 @@
   body,
   #root {
     height: 100%;
+  }
+
+  :root {
+    color-scheme: light;
+
+    /*
+     * Hatch stripes for placeholder media. Plain properties, not @theme: only
+     * the hatch utilities read them, and no utility should be generated.
+     */
+    --color-hatch-sand-a: #f0e5d2;
+    --color-hatch-sand-b: #f8f0e3;
+    --color-hatch-clip-a: #eee3ce;
+    --color-hatch-clip-b: #f7efe1;
   }
 
   body {
