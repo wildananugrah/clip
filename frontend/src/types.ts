@@ -215,3 +215,13 @@ export interface RecommendationRound {
   candidates: Recommendation[]
   createdAt: string
 }
+
+/**
+ * Caption options and hashtags for posting one clip, written on request and
+ * saved on the clip. Hashtags come WITHOUT the leading '#'; see lib/social.ts.
+ */
+export interface SocialCopy {
+  captions: string[]
+  hashtags: string[]
+  createdAt: string
+}

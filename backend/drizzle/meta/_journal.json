@@ -92,6 +92,13 @@
       "when": 1790513659967,
       "tag": "0012_project_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790849632620,
+      "tag": "0013_clip_social",
+      "breakpoints": true
     }
   ]
 }

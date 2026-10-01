@@ -1,5 +1,6 @@
 /**
- * The one place that asks a model for clip ranges.
+ * The one place that talks to the model: clip ranges, and the captions and
+ * hashtags for posting a clip.
  *
  * The model is given the TRANSCRIPT WITH TIMESTAMPS, never the video. That is
  * deliberate: shown a video, Gemini emits MM:SS, which is ambiguous past one
@@ -18,6 +19,7 @@
 import { z } from 'zod'
 import type { Candidate } from './clipRanges.ts'
 import { extractJson } from './clipPrompt.ts'
+import { cleanSocialCopy } from './socialCopy.ts'
 
 const responseSchema = z.object({
   clips: z
@@ -74,7 +76,19 @@ export interface RequestClipsOptions {
   fetchImpl?: typeof fetch
 }
 
-export async function requestClips(opts: RequestClipsOptions): Promise<Candidate[]> {
+/**
+ * One strict-JSON completion: POST, unwrap, parse. Returns the decoded object
+ * for the caller's own schema to judge.
+ *
+ * Shared by every request below so they fail the same way -- a non-2xx, an
+ * empty reply and unparseable JSON each throw with a message naming which.
+ */
+async function completeJson(
+  opts: RequestClipsOptions,
+  schemaName: string,
+  schema: object,
+  temperature: number,
+): Promise<unknown> {
   const doFetch = opts.fetchImpl ?? fetch
 
   const res = await doFetch(`${opts.config.baseUrl}/chat/completions`, {
@@ -88,10 +102,10 @@ export async function requestClips(opts: RequestClipsOptions): Promise<Candidate
     body: JSON.stringify({
       model: opts.config.model,
       messages: [{ role: 'user', content: opts.prompt }],
-      temperature: 0.4,
+      temperature,
       response_format: {
         type: 'json_schema',
-        json_schema: { name: 'clips', strict: true, schema: CLIP_JSON_SCHEMA },
+        json_schema: { name: schemaName, strict: true, schema },
       },
     }),
   })
@@ -107,7 +121,11 @@ export async function requestClips(opts: RequestClipsOptions): Promise<Candidate
     throw new Error('OpenRouter returned an empty response.')
   }
 
-  const parsed = responseSchema.safeParse(JSON.parse(extractJson(content)))
+  return JSON.parse(extractJson(content))
+}
+
+export async function requestClips(opts: RequestClipsOptions): Promise<Candidate[]> {
+  const parsed = responseSchema.safeParse(await completeJson(opts, 'clips', CLIP_JSON_SCHEMA, 0.4))
   if (!parsed.success) {
     throw new Error(`OpenRouter returned unusable JSON: ${parsed.error.issues[0]?.message}`)
   }
@@ -121,4 +139,43 @@ export async function requestClips(opts: RequestClipsOptions): Promise<Candidate
     caption: c.caption,
     line: c.line,
   }))
+}
+
+const socialSchema = z.object({
+  captions: z.array(z.string()),
+  hashtags: z.array(z.string()),
+})
+
+export const SOCIAL_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    captions: {
+      type: 'array',
+      items: { type: 'string', description: 'A caption to post with the clip, no hashtags' },
+    },
+    hashtags: {
+      type: 'array',
+      items: { type: 'string', description: 'A hashtag without the leading #' },
+    },
+  },
+  required: ['captions', 'hashtags'],
+  additionalProperties: false,
+} as const
+
+/**
+ * Caption options and hashtags for one clip. See socialCopy.ts for the prompt.
+ *
+ * Warmer than requestClips: there the model is ranking moments and variety is
+ * noise, here variety between the options is the point.
+ */
+export async function requestSocialCopy(
+  opts: RequestClipsOptions,
+): Promise<{ captions: string[]; hashtags: string[] }> {
+  const parsed = socialSchema.safeParse(
+    await completeJson(opts, 'social_copy', SOCIAL_JSON_SCHEMA, 0.8),
+  )
+  if (!parsed.success) {
+    throw new Error(`OpenRouter returned unusable JSON: ${parsed.error.issues[0]?.message}`)
+  }
+  return cleanSocialCopy(parsed.data)
 }

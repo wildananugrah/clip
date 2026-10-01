@@ -313,6 +313,24 @@ export interface RecommendationsDTO {
   rounds: RecommendationRoundDTO[]
 }
 
+/** Caption options offered per clip. Asked for, then capped to, this many. */
+export const SOCIAL_CAPTIONS = 3
+/** Hashtags offered per clip, at most. */
+export const MAX_HASHTAGS = 12
+
+/**
+ * Caption options and hashtags for posting one clip, written on request.
+ *
+ * Hashtags are stored and sent WITHOUT the leading '#': the UI adds it, so a
+ * tag the model returned as "#foo" and one it returned as "foo" are the same
+ * tag and dedupe as such.
+ */
+export interface SocialCopyDTO {
+  captions: string[]
+  hashtags: string[]
+  createdAt: string
+}
+
 export interface CreateJobBody {
   videoId: string
   count: number
