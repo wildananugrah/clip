@@ -7,6 +7,9 @@
  * use it" true rather than merely "nobody can see it", and it matters more here
  * than for the editor -- POST /recommendations spends money on every call.
  *
+ * It also gates the per-clip caption suggestions (routes/social.ts), which spend
+ * on the same model bill and so want the same lever.
+ *
  * 404, NOT 403, for the reason editorGate gives: while the feature is off these
  * endpoints do not exist as far as the outside world is concerned, and 403
  * would advertise something deliberately unavailable and invite retrying.

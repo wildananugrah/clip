@@ -357,6 +357,16 @@ export const clips = pgTable(
     caption: text('caption').notNull(),
     /** Pre-wrapped two-line hook shown on the card (distinct from burned subs). */
     subtitleLine: text('subtitle_line').notNull(),
+    /**
+     * Caption options and hashtags for posting, written when the user first asks
+     * for them and replaced when they ask again.
+     *
+     * Null until then, and for every clip made before this existed -- not
+     * produced at analysis, because the analysis prompt sees twenty moments at
+     * once and this one is worth a call of its own per clip. Kept through a Redo,
+     * which re-cuts the same range and so says the same thing.
+     */
+    social: jsonb('social').$type<SocialCopy>(),
     status: clipStatus('status').notNull().default('pending'),
     error: text('error'),
 
@@ -490,6 +500,15 @@ export interface RecommendedCandidate {
   snippet: string
   caption: string
   line: string
+}
+
+/** clips.social. The wire shape is SocialCopyDTO, which is this. */
+export interface SocialCopy {
+  captions: string[]
+  /** Without the leading '#'. */
+  hashtags: string[]
+  /** ISO timestamp of when the model wrote them. */
+  createdAt: string
 }
 
 /** One whisper segment. Times are seconds from the start of the source. */

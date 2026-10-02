@@ -12,6 +12,7 @@ import { warnAboutStorage } from './s3.ts'
 import { sources } from './routes/sources.ts'
 import { jobsRoutes } from './routes/jobs.ts'
 import { recommendationRoutes } from './routes/recommendations.ts'
+import { socialRoutes } from './routes/social.ts'
 import { clipsRoutes, downloadsRoutes } from './routes/clips.ts'
 import { mediaRoutes } from './routes/media.ts'
 import { pool } from './db/index.ts'
@@ -66,6 +67,7 @@ app.route('/api/jobs', jobsRoutes)
 app.route('/api/jobs', recommendationRoutes)
 app.route('/api/projects', jobsRoutes) // GET / lists completed jobs
 app.route('/api/clips', clipsRoutes)
+app.route('/api/clips', socialRoutes)
 app.route('/api/downloads', downloadsRoutes)
 
 /**

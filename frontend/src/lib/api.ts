@@ -11,6 +11,7 @@ import type {
   JobStatus,
   TranscriptLine,
   RecommendationRound,
+  SocialCopy,
 } from '../types'
 
 /**
@@ -282,6 +283,20 @@ export const api = {
     call<{ ok: boolean }>(`/projects/${id}`, { method: 'DELETE' }),
 
   redoClip: (clipId: string) => call<{ ok: boolean }>(`/clips/${clipId}/redo`, { method: 'POST' }),
+
+  /**
+   * The caption options and hashtags saved on a clip, or null when none have
+   * been written yet. Free: the server never asks the model for this one.
+   */
+  clipSocial: (clipId: string) =>
+    call<{ social: SocialCopy | null }>(`/clips/${clipId}/social`),
+
+  /**
+   * Write a fresh set, replacing any saved one. Waits on the model -- several
+   * seconds -- so callers must show that something is happening.
+   */
+  writeSocial: (clipId: string) =>
+    call<{ social: SocialCopy }>(`/clips/${clipId}/social`, { method: 'POST' }),
 
   /**
    * Ask for the editor's preview assets for a project that has none.

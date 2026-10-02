@@ -40,6 +40,7 @@ beforeAll(async () => {
   env.RECOMMENDATIONS_ENABLED = false
 
   const { recommendationRoutes } = await import('./routes/recommendations.ts')
+  const { socialRoutes } = await import('./routes/social.ts')
 
   // Stands in for requireSession, as projects.route.test.ts does: a fixed user
   // owning nothing, so any handler that runs falls through to its own 404.
@@ -57,6 +58,7 @@ beforeAll(async () => {
     await next()
   })
   app.route('/api/jobs', recommendationRoutes)
+  app.route('/api/clips', socialRoutes)
 })
 
 /**
@@ -86,6 +88,19 @@ describe('recommendation routes are gated off', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ roundId: UNKNOWN, indices: [0] }),
     })
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'Not found' })
+  })
+
+  // Caption suggestions spend on the same model bill, so the same lever stops them.
+  test('GET /clips/:id/social is unreachable', async () => {
+    const res = await app.request(`/api/clips/${UNKNOWN}/social`)
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'Not found' })
+  })
+
+  test('POST /clips/:id/social spends nothing when off', async () => {
+    const res = await app.request(`/api/clips/${UNKNOWN}/social`, { method: 'POST' })
     expect(res.status).toBe(404)
     expect(await res.json()).toEqual({ error: 'Not found' })
   })

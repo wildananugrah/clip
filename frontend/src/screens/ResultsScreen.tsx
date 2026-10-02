@@ -2,6 +2,7 @@ import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
 import { LazyImage } from '../components/LazyImage'
 import { ShareClip } from '../components/ShareClip'
+import { ClipCaptions } from '../components/ClipCaptions'
 import { MomentsToggle, RecommendationPanel } from '../components/RecommendationPanel'
 import { FEATURES } from '../config'
 import { RATIOS } from '../data/fixtures'
@@ -27,6 +28,7 @@ export function ResultsScreen() {
   // Defaults to false: /me may not have answered yet, and a button that
   // appears and then disappears is worse than one that never appears.
   const editorEnabled = state.user?.features?.editor ?? false
+  const recommendationsEnabled = state.user?.features?.recommendations ?? false
 
   const src = state.source
   const ordered = sortClips(state.clips, state.sortByScore)
@@ -210,6 +212,17 @@ export function ResultsScreen() {
                       <p className="m-0 mb-[9px] line-clamp-2 text-[11px] leading-[1.45] text-muted">
                         {clip.sn}
                       </p>
+                    )}
+                    {/*
+                      Its own full-width row: the action row below already holds
+                      up to three buttons on a phone, and a fourth would squeeze
+                      every label. Behind the recommendations flag because it
+                      spends on the same model, and 404s with it server-side.
+                    */}
+                    {recommendationsEnabled && (
+                      <div className="mb-1.5">
+                        <ClipCaptions clip={clip} />
+                      </div>
                     )}
                     <div className="flex gap-1.5">
                       {/*
