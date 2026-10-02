@@ -225,3 +225,12 @@ export interface SocialCopy {
   hashtags: string[]
   createdAt: string
 }
+
+/** Where a clip was cut from, for crediting it when posting. */
+export interface ClipSource {
+  /** Uploader / channel. Null when the extractor did not supply one. */
+  channel: string | null
+  platform: string
+  title: string
+  url: string
+}

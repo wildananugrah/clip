@@ -331,6 +331,18 @@ export interface SocialCopyDTO {
   createdAt: string
 }
 
+/**
+ * Where a clip was cut from, for the credit line people post with it. Read
+ * straight off the video row, so it never waits on the model.
+ */
+export interface ClipSourceDTO {
+  /** Uploader / channel. Null when the extractor did not supply one. */
+  channel: string | null
+  platform: string
+  title: string
+  url: string
+}
+
 export interface CreateJobBody {
   videoId: string
   count: number

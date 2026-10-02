@@ -20,6 +20,7 @@ import { recommendationConfig } from '../env.ts'
 import { buildSocialPrompt, clipTranscript } from '../../../shared/socialCopy.ts'
 import { requestSocialCopy, type OpenRouterConfig } from '../../../shared/openrouter.ts'
 import type { SocialCopy } from '../../../shared/schema.ts'
+import type { ClipSourceDTO } from '../../../shared/types.ts'
 
 export const socialRoutes = new Hono()
 
@@ -37,11 +38,27 @@ export function setSocialDeps(d: SocialDeps) {
   deps = d
 }
 
-/** What was written last time, or null. Free: never asks the model. */
+/**
+ * What was written last time, or null, and the source to credit. Free: never
+ * asks the model, so the credit is there even when captions cannot be written.
+ */
 socialRoutes.get('/:id/social', recommendationsGate, async (c) => {
   const clip = await ownedClip(c.get('user').id, c.req.param('id'))
   if (!clip) return c.json({ error: 'Clip not found' }, 404)
-  return c.json({ social: clip.social ?? null })
+
+  const [source]: ClipSourceDTO[] = await db
+    .select({
+      channel: videos.uploader,
+      platform: videos.platform,
+      title: videos.title,
+      url: videos.url,
+    })
+    .from(jobs)
+    .innerJoin(videos, eq(videos.id, jobs.videoId))
+    .where(eq(jobs.id, clip.jobId))
+    .limit(1)
+
+  return c.json({ social: clip.social ?? null, source: source ?? null })
 })
 
 /** Write a fresh set, replacing any saved one. */

@@ -15,14 +15,17 @@ import { Chip } from './Chip'
 import { CaptionsDialog } from './CaptionsDialog'
 import { api, ApiError } from '../lib/api'
 import { clipTitle } from '../lib/derive'
+import { sourceCredit } from '../lib/social'
 import { useApp } from '../state/AppContext'
-import type { Clip, SocialCopy } from '../types'
+import type { Clip, ClipSource, SocialCopy } from '../types'
 
 export function ClipCaptions({ clip }: { clip: Clip }) {
   const { say } = useApp()
   const [open, setOpen] = useState(false)
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading')
   const [social, setSocial] = useState<SocialCopy | null>(null)
+  /** Arrives with the free read, so it shows even if writing captions fails. */
+  const [source, setSource] = useState<ClipSource | null>(null)
   const [error, setError] = useState<string | null>(null)
   /**
    * Counts requests so only the latest one lands. Closing and reopening, or a
@@ -36,7 +39,13 @@ export function ClipCaptions({ clip }: { clip: Clip }) {
       setPhase('loading')
       setError(null)
       try {
-        let next = write ? null : (await api.clipSocial(clip.id)).social
+        let next: SocialCopy | null = null
+        if (!write) {
+          const saved = await api.clipSocial(clip.id)
+          if (ticket !== latest.current) return
+          setSource(saved.source)
+          next = saved.social
+        }
         if (!next) next = (await api.writeSocial(clip.id)).social
         if (ticket !== latest.current) return
         setSocial(next)
@@ -85,6 +94,7 @@ export function ClipCaptions({ clip }: { clip: Clip }) {
             phase={phase}
             social={social}
             error={error}
+            credit={source && sourceCredit(source, clip.s)}
             onCopy={onCopy}
             onRegenerate={() => void run(true)}
             onClose={onClose}
