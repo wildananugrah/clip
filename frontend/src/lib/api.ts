@@ -12,6 +12,7 @@ import type {
   TranscriptLine,
   RecommendationRound,
   SocialCopy,
+  ClipSource,
 } from '../types'
 
 /**
@@ -286,10 +287,11 @@ export const api = {
 
   /**
    * The caption options and hashtags saved on a clip, or null when none have
-   * been written yet. Free: the server never asks the model for this one.
+   * been written yet, plus the source video to credit. Free: the server never
+   * asks the model for this one.
    */
   clipSocial: (clipId: string) =>
-    call<{ social: SocialCopy | null }>(`/clips/${clipId}/social`),
+    call<{ social: SocialCopy | null; source: ClipSource | null }>(`/clips/${clipId}/social`),
 
   /**
    * Write a fresh set, replacing any saved one. Waits on the model -- several

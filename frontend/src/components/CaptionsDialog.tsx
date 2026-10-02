@@ -14,14 +14,21 @@ export interface CaptionsDialogProps {
   phase: 'loading' | 'ready' | 'error'
   social: SocialCopy | null
   error: string | null
+  /**
+   * The ready-to-paste source credit, or null when the source is not known yet.
+   * Independent of `social`: it is read off the video, not written by the model.
+   */
+  credit: string | null
   /** Copy `text`; `what` names it for the confirmation ("Caption copied."). */
   onCopy: (text: string, what: string) => void
   onRegenerate: () => void
   onClose: () => void
 }
 
+const HEADING = 'm-0 mb-2 text-[10.5px] font-semibold tracking-[.07em] text-ink/45 uppercase'
+
 /**
- * Caption options and hashtags for posting one clip.
+ * Caption options, the source credit, and hashtags for posting one clip.
  *
  * Props, not context, for the reason ClipPlayer gives: every state renders to
  * static markup in a test. ClipCaptions owns the fetching.
@@ -31,6 +38,7 @@ export function CaptionsDialog({
   phase,
   social,
   error,
+  credit,
   onCopy,
   onRegenerate,
   onClose,
@@ -100,9 +108,7 @@ export function CaptionsDialog({
 
           {social && (
             <>
-              <h3 className="m-0 mb-2 text-[10.5px] font-semibold tracking-[.07em] text-ink/45 uppercase">
-                Captions
-              </h3>
+              <h3 className={HEADING}>Captions</h3>
               <ol className="m-0 mb-5 flex list-none flex-col gap-2 p-0">
                 {social.captions.map((caption, i) => (
                   <li
@@ -120,40 +126,64 @@ export function CaptionsDialog({
                   </li>
                 ))}
               </ol>
-
-              {social.hashtags.length > 0 && (
-                <>
-                  <h3 className="m-0 mb-2 text-[10.5px] font-semibold tracking-[.07em] text-ink/45 uppercase">
-                    Hashtags
-                  </h3>
-                  <ul className="m-0 mb-3 flex list-none flex-wrap gap-1.5 p-0">
-                    {social.hashtags.map((tag) => (
-                      <li
-                        key={tag}
-                        className="rounded-full bg-sand px-2.5 py-1 text-[12px] font-medium text-ink-soft"
-                      >
-                        #{tag}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="flex flex-wrap gap-2">
-                    <Chip
-                      onClick={() => onCopy(hashtagLine(social.hashtags), 'Hashtags')}
-                      className="h-[30px] px-[11px]"
-                    >
-                      Copy hashtags
-                    </Chip>
-                    {/* The first caption is the one most people take, so it leads the post. */}
-                    <Chip
-                      onClick={() => onCopy(postText(social.captions[0], social.hashtags), 'Post')}
-                      className="h-[30px] px-[11px]"
-                    >
-                      Copy with hashtags
-                    </Chip>
-                  </div>
-                </>
-              )}
             </>
+          )}
+
+          {credit && (
+            <>
+              <h3 className={HEADING}>Source</h3>
+              <div className="mb-5 flex items-start gap-2.5 rounded-[10px] border border-ink/10 p-3">
+                <p className="m-0 min-w-0 flex-1 text-[13px] leading-[1.5] whitespace-pre-line text-ink [overflow-wrap:anywhere]">
+                  {credit}
+                </p>
+                <Chip
+                  onClick={() => onCopy(credit, 'Source')}
+                  aria-label="Copy source"
+                  className="h-[30px] flex-none px-[11px]"
+                >
+                  Copy
+                </Chip>
+              </div>
+            </>
+          )}
+
+          {social && social.hashtags.length > 0 && (
+            <>
+              <h3 className={HEADING}>Hashtags</h3>
+              <ul className="m-0 mb-3 flex list-none flex-wrap gap-1.5 p-0">
+                {social.hashtags.map((tag) => (
+                  <li
+                    key={tag}
+                    className="rounded-full bg-sand px-2.5 py-1 text-[12px] font-medium text-ink-soft"
+                  >
+                    #{tag}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {/* With neither tags nor a credit, the full post would just be caption 1. */}
+          {social && (social.hashtags.length > 0 || credit) && (
+            <div className="flex flex-wrap gap-2">
+              {social.hashtags.length > 0 && (
+                <Chip
+                  onClick={() => onCopy(hashtagLine(social.hashtags), 'Hashtags')}
+                  className="h-[30px] px-[11px]"
+                >
+                  Copy hashtags
+                </Chip>
+              )}
+              {/* The first caption is the one most people take, so it leads the post. */}
+              <Chip
+                onClick={() =>
+                  onCopy(postText(social.captions[0], social.hashtags, credit ?? ''), 'Post')
+                }
+                className="h-[30px] px-[11px]"
+              >
+                Copy full post
+              </Chip>
+            </div>
           )}
         </div>
 

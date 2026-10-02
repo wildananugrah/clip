@@ -17,6 +17,7 @@ const props = (over: Partial<CaptionsDialogProps> = {}): CaptionsDialogProps => 
     createdAt: '2026-10-01T00:00:00.000Z',
   },
   error: null,
+  credit: 'Source: Close The Door (YouTube)\n"Episode 12"\nhttps://youtu.be/abc123?t=30s',
   onCopy: () => {},
   onRegenerate: () => {},
   onClose: () => {},
@@ -46,7 +47,7 @@ describe('CaptionsDialog', () => {
     expect(markup).toContain('#pricing')
     expect(markup).toContain('#startup')
     expect(markup).toContain('Copy hashtags')
-    expect(markup).toContain('Copy with hashtags')
+    expect(markup).toContain('Copy full post')
   })
 
   test('hides the hashtag row when there are none', () => {
@@ -54,7 +55,40 @@ describe('CaptionsDialog', () => {
       social: { captions: ['Only a caption.'], hashtags: [], createdAt: 'x' },
     })
     expect(markup).not.toContain('Copy hashtags')
-    expect(markup).not.toContain('Copy with hashtags')
+  })
+
+  test('shows the source credit with its own copy button', () => {
+    const markup = html()
+    expect(markup).toContain('Source: Close The Door (YouTube)')
+    expect(markup).toContain('https://youtu.be/abc123?t=30s')
+    expect(markup).toContain('aria-label="Copy source"')
+  })
+
+  // The credit is read off the video, not written by the model, so a failed
+  // or slow caption request must not take it away.
+  test('keeps the source credit while captions are loading or failed', () => {
+    expect(html({ phase: 'loading', social: null })).toContain('Source: Close The Door')
+    expect(html({ phase: 'error', social: null, error: 'x' })).toContain('Source: Close The Door')
+  })
+
+  test('has no source section when the source is unknown', () => {
+    const markup = html({ credit: null })
+    expect(markup).not.toContain('Copy source')
+  })
+
+  test('offers the full post with no hashtags when there is a credit', () => {
+    const markup = html({
+      social: { captions: ['Only a caption.'], hashtags: [], createdAt: 'x' },
+    })
+    expect(markup).toContain('Copy full post')
+  })
+
+  test('has nothing to assemble with neither hashtags nor credit', () => {
+    const markup = html({
+      social: { captions: ['Only a caption.'], hashtags: [], createdAt: 'x' },
+      credit: null,
+    })
+    expect(markup).not.toContain('Copy full post')
   })
 
   test('says it is writing while the first set is on its way', () => {

@@ -95,6 +95,7 @@ beforeAll(async () => {
         platform: 'test',
         title: 'Founder podcast',
         durationSeconds: 600,
+        uploader: suffix === 'a' ? 'Close The Door' : null,
       })
       .returning()
     return v.id
@@ -172,10 +173,24 @@ afterAll(async () => {
 
 const post = (id: string, a: Hono = app) => a.request(`/api/clips/${id}/social`, { method: 'POST' })
 
-maybe('GET answers null before anything was written', async () => {
+maybe('GET answers null before anything was written, with the source to credit', async () => {
   const res = await app.request(`/api/clips/${clipId}/social`)
   expect(res.status).toBe(200)
-  expect(await res.json()).toEqual({ social: null })
+  const body = (await res.json()) as any
+  expect(body.social).toBeNull()
+  expect(body.source).toEqual({
+    channel: 'Close The Door',
+    platform: 'test',
+    title: 'Founder podcast',
+    url: expect.stringContaining('https://test.invalid/social-a-'),
+  })
+  expect(prompts).toHaveLength(0)
+})
+
+maybe('the source credit has no channel when the extractor gave none', async () => {
+  const body = (await (await app.request(`/api/clips/${noTranscriptClipId}/social`)).json()) as any
+  expect(body.source.channel).toBeNull()
+  expect(body.source.title).toBe('Founder podcast')
 })
 
 maybe('POST writes from the words inside the clip only, and saves them', async () => {
