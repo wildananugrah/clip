@@ -1,9 +1,8 @@
 import { cn } from '../lib/cn'
-import { jobIndicator, quota } from '../lib/derive'
+import { quota } from '../lib/derive'
 import { useApp } from '../state/AppContext'
 import type { Screen } from '../types'
 import { Button } from './Button'
-import { JobIndicator } from './JobIndicator'
 import { Logo } from './Logo'
 
 const NAV: Array<{ label: string; screen: Screen }> = [
@@ -16,7 +15,6 @@ const NAV: Array<{ label: string; screen: Screen }> = [
 /** Stands in for the sidebar below the medium breakpoint. */
 export function MobileNav() {
   const { state, go, goNew, goResults } = useApp()
-  const job = jobIndicator(state)
 
   return (
     <div className="flex-none border-b border-ink/8 bg-paper px-4 py-3 md:hidden">
@@ -27,12 +25,11 @@ export function MobileNav() {
           + New
         </Button>
       </div>
-      <JobIndicator
-        indicator={job}
-        variant="nav"
-        current={state.screen === job.target}
-        onOpen={() => go(job.target)}
-      />
+      {/*
+        No job indicator here, unlike the sidebar: the shell's banner sits right
+        below this nav at every width, and a second copy of "Clips ready" cost
+        a phone ~45px of the screen for nothing.
+      */}
 
       <div className="-mx-1 mt-2 flex gap-1 overflow-x-auto">
         {NAV.map((item) => {

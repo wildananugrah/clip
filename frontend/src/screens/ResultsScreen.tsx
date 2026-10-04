@@ -46,7 +46,14 @@ export function ResultsScreen() {
       so the clip column simply takes the whole width back.
     */
     <div className="flex min-h-0 flex-1">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {/*
+        Below md the whole column scrolls as one, so the header and toolbar
+        scroll away and the clips get the screen. Scrolling only the grid left
+        it a ~200px letterbox on a phone, under the nav, the job banner, the
+        header, the toolbar and the selection bar. From md up only the grid
+        scrolls, since there is height to spare for the chrome.
+      */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto md:overflow-visible">
         {/*
           flex-wrap so "Regenerate all" drops to its own line rather than
           squeezing the title into ~57px, where a 17px heading shreds into
@@ -114,7 +121,8 @@ export function ResultsScreen() {
           <MomentsToggle />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto px-5 pb-[22px] sm:px-[26px]">
+        {/* flex-none below md, or the scrolling column would squeeze it back down. */}
+        <div className="flex-none px-5 pb-[22px] sm:px-[26px] md:min-h-0 md:flex-1 md:overflow-auto">
           <div className="grid max-w-[1120px] grid-cols-[repeat(auto-fill,minmax(min(152px,100%),1fr))] gap-4">
             {ordered.map((clip) => {
               const busy = !!state.regenerating[clip.id]
@@ -257,16 +265,27 @@ export function ResultsScreen() {
           its height cropped the wrapped lines, which put the Download button
           below the border and out of reach on a phone. Desktop is unchanged at
           66px, since the contents fit on one line there.
+
+          On a phone it is one row of two buttons: the Download label already
+          carries the count, and the two text lines cost the grid ~50px. Sticky
+          so it stays put while the column scrolls under it; z-30 clears the
+          z-20 play buttons, which no card isolates into its own stacking context.
         */}
-        <div className="flex min-h-[66px] flex-none flex-wrap items-center gap-x-4 gap-y-2.5 border-t border-ink/8 bg-paper px-5 py-3 sm:px-[26px] sm:py-0">
-          <span className="text-[13.5px] font-semibold text-ink">
+        <div className="sticky bottom-0 z-30 mt-auto flex flex-none items-center gap-x-4 gap-y-2.5 border-t border-ink/8 bg-paper px-5 py-3 sm:min-h-[66px] sm:flex-wrap sm:px-[26px] sm:py-0">
+          <span className="hidden text-[13.5px] font-semibold text-ink sm:inline">
             {selected === 0
               ? 'No clips selected'
               : `${selected} ${selected === 1 ? 'clip' : 'clips'} selected`}
           </span>
-          <span className="text-[12.5px] text-ink/42">{exportLabel(state.filter, state.subs)}</span>
-          <div className="ml-auto flex gap-2.5">
-            <Button variant="outline" onClick={toggleSelectAll} className="h-10 px-4 text-[13px]">
+          <span className="hidden text-[12.5px] text-ink/42 sm:inline">
+            {exportLabel(state.filter, state.subs)}
+          </span>
+          <div className="flex flex-1 gap-2.5 sm:ml-auto sm:flex-none">
+            <Button
+              variant="outline"
+              onClick={toggleSelectAll}
+              className="h-11 flex-1 px-4 text-[13px] sm:h-10 sm:flex-none"
+            >
               {allSelected ? 'Clear selection' : 'Select all'}
             </Button>
             {/*
@@ -277,7 +296,7 @@ export function ResultsScreen() {
               armed={selected > 0}
               onClick={download}
               loading={state.pending === 'download'}
-              className="h-10 px-5 text-[13px]"
+              className="h-11 flex-[1.4] px-5 text-[13px] sm:h-10 sm:flex-none"
             >
               {state.pending === 'download'
                 ? selected > 1
