@@ -5,12 +5,70 @@
  * it forces H.264/AAC so that later cuts stream-copy without re-encoding.
  * YouTube's default "best" is VP9/Opus, which lands in .webm and forces a
  * per-clip re-encode.
+ *
+ * HLS video comes first. YouTube's DASH (https) video URLs serve the first
+ * 10MB chunk and then 403 the next range request, so a 1080p download dies at
+ * ~1.5%. The HLS rendition of the same H.264 stream downloads in full, at
+ * roughly twice the bitrate. Audio has no HLS rendition and its DASH URL
+ * completes, so `ba` stays unconstrained.
  */
-import { statfs } from 'node:fs/promises'
+import { statfs, mkdtemp, copyFile, chmod, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { run, runStreaming, ProcError } from './proc.ts'
 
 export const DEFAULT_FORMAT =
-  process.env.YTDLP_FORMAT ?? 'bv*[vcodec^=avc1]+ba[acodec^=mp4a]/b[ext=mp4]/bv*+ba/b'
+  process.env.YTDLP_FORMAT ??
+  'bv*[vcodec^=avc1][protocol^=m3u8]+ba[acodec^=mp4a]/bv*[vcodec^=avc1]+ba[acodec^=mp4a]/b[ext=mp4]/bv*+ba/b'
+
+export interface YtdlpConfig {
+  /** `--js-runtimes` value; blank disables the flag. */
+  jsRuntimes?: string
+  /** Netscape cookies.txt to authenticate with. */
+  cookiesFile?: string
+}
+
+const configFromEnv = (): YtdlpConfig => ({
+  jsRuntimes: process.env.YTDLP_JS_RUNTIMES,
+  cookiesFile: process.env.YTDLP_COOKIES || undefined,
+})
+
+/**
+ * Run `fn` with the arguments every yt-dlp call against YouTube needs.
+ *
+ * JS runtime: YouTube's player challenges now need one, and yt-dlp only
+ * auto-enables deno. Bun is already on PATH wherever this code runs, but
+ * yt-dlp ignores it unless named.
+ *
+ * Cookies: get past "Sign in to confirm you're not a bot" on a flagged IP.
+ * yt-dlp writes the jar back to the file on exit -- it crashes outright when
+ * the file is read-only, and the API and worker would race on a shared one --
+ * so each call gets its own copy, deleted afterwards.
+ */
+export async function withYtdlpArgs<T>(
+  fn: (args: string[]) => Promise<T>,
+  cfg: YtdlpConfig = configFromEnv(),
+): Promise<T> {
+  const runtimes = cfg.jsRuntimes ?? 'bun'
+  const args = runtimes ? ['--js-runtimes', runtimes] : []
+  if (!cfg.cookiesFile) return fn(args)
+
+  const dir = await mkdtemp(join(tmpdir(), 'ytdlp-cookies-'))
+  try {
+    const copy = join(dir, 'cookies.txt')
+    try {
+      await copyFile(cfg.cookiesFile, copy)
+    } catch (e) {
+      throw new Error(
+        `YTDLP_COOKIES is set to ${cfg.cookiesFile}, which could not be read: ${(e as Error).message}`,
+      )
+    }
+    await chmod(copy, 0o600)
+    return await fn([...args, '--cookies', copy])
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+}
 
 export interface ProbeResult {
   id: string
@@ -58,9 +116,11 @@ export async function assertYtdlpFresh(maxAgeDays: number): Promise<void> {
 export async function probe(url: string): Promise<ProbeResult> {
   let stdout: string
   try {
-    ;({ stdout } = await run(
-      ['yt-dlp', '--dump-single-json', '--no-playlist', '--no-warnings', '-f', DEFAULT_FORMAT, url],
-      { timeoutMs: 60_000 },
+    ;({ stdout } = await withYtdlpArgs((base) =>
+      run(
+        ['yt-dlp', ...base, '--dump-single-json', '--no-playlist', '--no-warnings', '-f', DEFAULT_FORMAT, url],
+        { timeoutMs: 60_000 },
+      ),
     ))
   } catch (e) {
     if (e instanceof ProcError) {
@@ -95,8 +155,27 @@ export async function probe(url: string): Promise<ProbeResult> {
     thumbnail: j.thumbnail ?? null,
     maxHeight,
     isLive: Boolean(j.was_live),
-    estimatedBytes: Number(j.filesize ?? j.filesize_approx ?? 0) || null,
+    estimatedBytes: estimateBytes(j, duration),
   }
+}
+
+/**
+ * Byte size of the selected format(s), for the disk guard.
+ *
+ * yt-dlp's own top-level filesize_approx sums only the parts whose size it
+ * knows. HLS formats carry none, so for HLS video + DASH audio it reports the
+ * audio alone -- ~3% of the real download. Fill each gap from bitrate x duration.
+ */
+export function estimateBytes(j: Record<string, any>, durationSeconds: number): number | null {
+  const parts: any[] = Array.isArray(j.requested_formats) ? j.requested_formats : [j]
+  let total = 0
+  for (const f of parts) {
+    const size =
+      Number(f.filesize ?? f.filesize_approx ?? 0) || (Number(f.tbr ?? 0) * 1000 * durationSeconds) / 8
+    if (!size) return null
+    total += size
+  }
+  return Math.round(total) || null
 }
 
 /**
@@ -115,32 +194,35 @@ export async function download(
   const template = `${outDir}/source.%(ext)s`
   let finalPath = ''
 
-  await runStreaming(
-    [
-      'yt-dlp',
-      '--no-playlist',
-      '--no-warnings',
-      '--newline', // one progress line per update instead of \r redraws
-      '--progress', // --print implies --quiet, which would suppress progress entirely
-      '--no-part', // avoid .part debris if the worker is killed
-      '-f',
-      DEFAULT_FORMAT,
-      '--print',
-      'after_move:%(filepath)s',
-      '-o',
-      template,
-      url,
-    ],
-    (line) => {
-      const pct = line.match(/\[download\]\s+([\d.]+)%/)
-      if (pct) {
-        onProgress(Math.min(1, Number(pct[1]) / 100))
-        return
-      }
-      // The --print output arrives on stdout as a bare path.
-      if (line.startsWith('/') && !line.includes(' ')) finalPath = line.trim()
-    },
-    { signal },
+  await withYtdlpArgs((base) =>
+    runStreaming(
+      [
+        'yt-dlp',
+        ...base,
+        '--no-playlist',
+        '--no-warnings',
+        '--newline', // one progress line per update instead of \r redraws
+        '--progress', // --print implies --quiet, which would suppress progress entirely
+        '--no-part', // avoid .part debris if the worker is killed
+        '-f',
+        DEFAULT_FORMAT,
+        '--print',
+        'after_move:%(filepath)s',
+        '-o',
+        template,
+        url,
+      ],
+      (line) => {
+        const pct = line.match(/\[download\]\s+([\d.]+)%/)
+        if (pct) {
+          onProgress(Math.min(1, Number(pct[1]) / 100))
+          return
+        }
+        // The --print output arrives on stdout as a bare path.
+        if (line.startsWith('/') && !line.includes(' ')) finalPath = line.trim()
+      },
+      { signal },
+    ),
   )
 
   if (!finalPath) throw new Error('Download finished but produced no file path.')

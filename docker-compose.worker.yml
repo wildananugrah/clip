@@ -19,6 +19,8 @@ services:
     volumes:
       # Optional persistence for scratch / downloads / cache
       - worker-work:/app/worker/output/.work
+      # YouTube cookies (pair with YTDLP_COOKIES=/run/secrets/yt-cookies.txt).
+      # - ./yt-cookies.txt:/run/secrets/yt-cookies.txt:ro
     network_mode: host
 
 volumes:

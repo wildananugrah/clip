@@ -26,6 +26,7 @@ dist-ssr
 references/
 # Local secrets
 .env
+yt-cookies.txt
 
 # Worker scratch (video downloads + intermediates). WORK_DIR in .env is
 # resolved against the worker's cwd, so this lives under worker/.

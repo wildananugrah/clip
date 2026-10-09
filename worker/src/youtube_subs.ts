@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { parseVttToSegments } from './vtt.ts'
 import { segmentsToFullSrt } from './srt_full.ts'
 import type { TranscribeResult } from './stages/transcribe.ts'
+import { withYtdlpArgs } from '../../shared/ytdlp.ts'
 
 /**
  * Checks if a video URL is from YouTube.
@@ -60,23 +61,25 @@ export async function tryFetchYouTubeSubtitles(
       videoUrl,
     ]
 
-    const proc = spawn('yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'] })
-    const onAbort = signal ? () => proc.kill('SIGKILL') : undefined
-    if (signal) {
-      if (signal.aborted) proc.kill('SIGKILL')
-      else signal.addEventListener('abort', onAbort!, { once: true })
-    }
+    const exitCode = await withYtdlpArgs((base) => {
+      const proc = spawn('yt-dlp', [...base, ...args], { stdio: ['ignore', 'pipe', 'pipe'] })
+      const onAbort = signal ? () => proc.kill('SIGKILL') : undefined
+      if (signal) {
+        if (signal.aborted) proc.kill('SIGKILL')
+        else signal.addEventListener('abort', onAbort!, { once: true })
+      }
     
-    let stderr = ''
-    proc.stderr.on('data', (d) => {
-      stderr += d.toString()
-    })
+      let stderr = ''
+      proc.stderr.on('data', (d) => {
+        stderr += d.toString()
+      })
 
-    const exitCode = await new Promise<number>((resolve) => {
-      proc.on('close', (code) => resolve(code ?? 1))
-      proc.on('error', () => resolve(1))
-    }).finally(() => {
-      if (signal && onAbort) signal.removeEventListener('abort', onAbort)
+      return new Promise<number>((resolve) => {
+        proc.on('close', (code) => resolve(code ?? 1))
+        proc.on('error', () => resolve(1))
+      }).finally(() => {
+        if (signal && onAbort) signal.removeEventListener('abort', onAbort)
+      })
     })
     if (signal?.aborted) throw new Error('Aborted')
 

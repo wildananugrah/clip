@@ -25,6 +25,8 @@ services:
       - worker-work:/app/worker/output/.work
       # Whisper weights (large-v3-turbo is 1.6GB); kept across rebuilds.
       - worker-hf:/root/.cache/huggingface
+      # YouTube cookies (pair with YTDLP_COOKIES=/run/secrets/yt-cookies.txt).
+      # - ./yt-cookies.txt:/run/secrets/yt-cookies.txt:ro
     devices:
       - nvidia.com/gpu=all
     security_opt:

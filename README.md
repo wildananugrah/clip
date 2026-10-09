@@ -101,6 +101,9 @@ cd worker && RUN_MEDIA_TESTS=1 bun --env-file=../.env test render.integration
 | `WORKER_CONCURRENCY` | `1` | Whisper and x264 each want every core. Overlapping jobs make both slower and risk the OOM killer. |
 | `MIN_FREE_DISK_GB` | `5` | Jobs are refused unless free disk is above this **and** 3× the estimated source size. |
 | `YTDLP_MAX_AGE_DAYS` | `60` | YouTube rotates URL signing; a stale yt-dlp 403s partway through a multi-GB download. |
+| `YTDLP_JS_RUNTIMES` | `bun` | YouTube's player challenges need a JS runtime; yt-dlp only auto-enables deno, so bun has to be named. |
+| `YTDLP_COOKIES` | — | cookies.txt for "Sign in to confirm you're not a bot" (a flagged worker IP). Use a throwaway account; see `.env.example`. |
+| `YTDLP_FORMAT` | HLS-first H.264/AAC | YouTube's DASH video 403s after the first 10MB; its HLS rendition of the same stream downloads in full. |
 | `PUBLIC_API_URL` | `http://localhost:3014` | Signed media URLs are built against this. Wrong value = links the browser cannot reach. |
 
 ## How things work
